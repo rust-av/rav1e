@@ -591,7 +591,6 @@ impl<T: Pixel> Context<T> {
   pub fn send_frame<F>(&mut self, frame: F) -> Result<(), EncoderStatus>
   where
     F: Into<Option<Arc<Frame<T>>>>,
-    T: Pixel,
   {
     let frame = frame.into();
 
@@ -655,8 +654,7 @@ impl<T: Pixel> Context<T> {
 impl<T: Pixel> ContextInner<T> {
   pub fn send_frame<F>(&mut self, frame: F) -> Result<(), EncoderStatus>
   where
-    F: Into<Option<Arc<Frame<T>>>>,
-    T: Pixel,
+    F: Into<Option<Arc<Frame<T>>>>
   {
     let idx = self.frame_count;
     let frame = frame.into();
