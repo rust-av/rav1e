@@ -783,6 +783,7 @@ impl<T: Pixel> ContextInner<T> {
     // look up the frame type. If reordering is enabled, the idx
     // may not match the frame number.
     let idx_in_segment = idx - self.segment_start_idx;
+
     if idx_in_segment > 0 {
       let next_keyframe = if keyframe_only { self.segment_start_frame + 1 } else { self.next_keyframe() };
       let (fi_temp, end_of_subgop) = FrameInvariants::new_inter_frame(
@@ -791,6 +792,7 @@ impl<T: Pixel> ContextInner<T> {
         idx_in_segment,
         next_keyframe
       );
+      println!("At index {} frame number {} -> {}", idx, fi.number, end_of_subgop);
       fi = fi_temp;
       if !end_of_subgop {
         if !fi.inter_cfg.unwrap().reorder
@@ -804,12 +806,21 @@ impl<T: Pixel> ContextInner<T> {
           return Ok((fi, false));
         }
       }
+    } else {
+      println!("At index {} out segment", idx);
     }
 
+    println!("At index {} frame number {}", idx, fi.number);
     match self.frame_q.get(&fi.number) {
-      Some(Some(_)) => {},
-      _ => { return Err(EncoderStatus::NeedMoreData); }
+      Some(Some(_)) => {
+        println!("At index {} frame number {} frame exists", idx, fi.number);
+      },
+      _ => {
+        println!("At index {} frame number {} frame does not exists", idx, fi.number);
+        return Err(EncoderStatus::NeedMoreData);
+      }
     }
+
 
     // Now that we know the frame number, look up the correct frame type
     let frame_type = self.determine_frame_type(fi.number);
@@ -1002,6 +1013,7 @@ impl<T: Pixel> ContextInner<T> {
       Some(frame) => frame,
       None => { return FrameType::KEY; }
     };
+    println!("Evaluating {} {:?}", frame_number, frame.is_some());
     if let Some(frame) = frame {
       let distance = frame_number - prev_keyframe;
       if distance < self.config.min_key_frame_interval {
