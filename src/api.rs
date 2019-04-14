@@ -514,6 +514,7 @@ impl Config {
       last_keyframe: 0,
       keyframes: BTreeSet::new(),
       keyframe_detector: SceneChangeDetector::new(self.enc.bit_depth),
+      is_flushing: false,
     }
   }
 }
@@ -548,6 +549,7 @@ pub struct Context<T: Pixel> {
   last_keyframe: u64,
   keyframes: BTreeSet<u64>,
   keyframe_detector: SceneChangeDetector<T>,
+  is_flushing: bool,
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -616,9 +618,14 @@ impl<T: Pixel> Context<T> {
   where
     F: Into<Option<Arc<Frame<T>>>>,
   {
+    if self.is_flushing {
+      return Ok(());
+    }
+
     let frame = frame.into();
 
     let keyframe = if frame.is_none() {
+        self.is_flushing = true;
         self.inner.limit = self.inner.frame_count;
         true
     } else {
