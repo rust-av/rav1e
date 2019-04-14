@@ -627,6 +627,13 @@ impl<T: Pixel> Context<T> {
     let keyframe = if frame.is_none() {
         self.is_flushing = true;
         self.inner.limit = self.inner.frame_count;
+
+        println!("keyframes {} vs detected {}", self.inner.keyframes.len(), self.keyframes.len());
+
+        for (k, d) in self.inner.keyframes.iter().zip(self.keyframes.iter()) {
+          println!("{} vs {}", k, d);
+        }
+
         true
     } else {
       if self.config.speed_settings.no_scene_detection {
