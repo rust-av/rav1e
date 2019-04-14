@@ -634,6 +634,9 @@ impl<T: Pixel> Context<T> {
           println!("{} vs {}", k, d);
         }
 
+        println!("{:#?}", self.keyframes);
+        println!("{:#?}", self.inner.keyframes);
+
         true
     } else {
       if self.config.speed_settings.no_scene_detection {
