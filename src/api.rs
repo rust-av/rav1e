@@ -481,8 +481,7 @@ impl Config {
 
     let pool = rayon::ThreadPoolBuilder::new().num_threads(threads).build().unwrap();
 
-    Context {
-      inner: ContextInner {
+    let inner = ContextInner {
         frame_count: 0,
         limit: 0,
         idx: 0,
@@ -490,10 +489,10 @@ impl Config {
         frame_q: BTreeMap::new(),
         frame_invariants: BTreeMap::new(),
         keyframes: BTreeSet::new(),
+        keyframes_tmp: BTreeSet::new(),
         packet_data,
         segment_start_idx: 0,
         segment_start_frame: 0,
-        keyframe_detector: SceneChangeDetector::new(self.enc.bit_depth),
         config: self.enc.clone(),
         rc_state: RCState::new(
           self.enc.width as i32,
@@ -507,8 +506,14 @@ impl Config {
         maybe_prev_log_base_q: None,
         first_pass_data: FirstPassData { frames: Vec::new() },
         pool
-      },
-      config: self.enc.clone()
+      };
+
+    Context {
+      inner,
+      config: self.enc.clone(),
+      last_keyframe: 0,
+      keyframes: BTreeSet::new(),
+      keyframe_detector: SceneChangeDetector::new(self.enc.bit_depth),
     }
   }
 }
@@ -529,17 +534,20 @@ pub struct ContextInner<T: Pixel> {
   packet_data: Vec<u8>,
   segment_start_idx: u64,
   segment_start_frame: u64,
-  keyframe_detector: SceneChangeDetector<T>,
   pub(crate) config: EncoderConfig,
   rc_state: RCState,
   maybe_prev_log_base_q: Option<i64>,
   pub first_pass_data: FirstPassData,
   pool: rayon::ThreadPool,
+  keyframes_tmp: BTreeSet<u64>,
 }
 
 pub struct Context<T: Pixel> {
   inner: ContextInner<T>,
   config: EncoderConfig,
+  last_keyframe: u64,
+  keyframes: BTreeSet<u64>,
+  keyframe_detector: SceneChangeDetector<T>,
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -588,14 +596,43 @@ impl<T: Pixel> Context<T> {
     ))
   }
 
+  fn detect_keyframe(&mut self, frame: Arc<Frame<T>>) -> bool {
+    if self.inner.frame_count == 0 {
+      true
+    } else {
+      let interval = self.inner.frame_count - self.last_keyframe;
+      let frame_count = self.inner.frame_count as usize;
+      let min_interval = self.config.min_key_frame_interval;
+      if interval + 1 == min_interval {
+        self.keyframe_detector.set_last_frame(frame.clone(), frame_count);
+      }
+
+      interval > self.config.max_key_frame_interval ||
+        interval > min_interval && self.keyframe_detector.detect_scene_change(frame.clone(), frame_count)
+    }
+  }
+
   pub fn send_frame<F>(&mut self, frame: F) -> Result<(), EncoderStatus>
   where
     F: Into<Option<Arc<Frame<T>>>>,
   {
     let frame = frame.into();
 
-    if frame.is_none() {
+    let keyframe = if frame.is_none() {
         self.inner.limit = self.inner.frame_count;
+        true
+    } else {
+      if self.config.speed_settings.no_scene_detection {
+        self.inner.frame_count % self.config.max_key_frame_interval == 0
+      } else {
+        self.detect_keyframe(frame.clone().unwrap())
+      }
+    };
+
+    if keyframe {
+      self.last_keyframe = self.inner.frame_count;
+      self.keyframes.insert(self.last_keyframe);
+      self.inner.keyframes_tmp.insert(self.last_keyframe);
     }
 
     self.inner.send_frame(frame)
@@ -926,6 +963,12 @@ impl<T: Pixel> ContextInner<T> {
   }
 
   fn determine_frame_type(&mut self, frame_number: u64) -> FrameType {
+    if self.keyframes_tmp.contains(&frame_number) {
+      FrameType::KEY
+    } else {
+      FrameType::INTER
+    }
+    /*
     if frame_number == 0 {
       return FrameType::KEY;
     }
@@ -961,6 +1004,7 @@ impl<T: Pixel> ContextInner<T> {
       }
     }
     FrameType::INTER
+    */
   }
 
   // Count the number of frames of each subtype in the next
