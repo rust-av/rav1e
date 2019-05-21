@@ -28,6 +28,8 @@ use crate::decoder::Decoder;
 use crate::decoder::VideoDetails;
 use std::fs::File;
 use std::io::BufWriter;
+use ctrlc;
+use std::sync::atomic::{AtomicUsize, Ordering};
 
 struct Source<D: Decoder> {
  limit: usize,
