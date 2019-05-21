@@ -35,11 +35,12 @@ struct Source<D: Decoder> {
  limit: usize,
  count: usize,
  input: D,
+ exit: Arc<AtomicUsize>,
 }
 
 impl<D: Decoder> Source<D> {
   fn read_frame<T: Pixel>(&mut self, ctx: &mut Context<T>, video_info: VideoDetails) {
-    if self.limit != 0 && self.count == self.limit {
+    if self.exit.load(Ordering::SeqCst) > 0 || self.limit != 0 && self.count == self.limit {
       ctx.flush();
       return;
     }
@@ -193,7 +194,18 @@ fn main() {
     y4m_dec.read_frame().expect("Skipped more frames than in the input");
   }
 
-  let mut source = Source { limit: cli.limit, input: y4m_dec, count: 0 };
+  let exit = Arc::new(AtomicUsize::new(0));
+  let e = exit.clone();
+  ctrlc::set_handler(move || {
+    if e.fetch_add(1, Ordering::SeqCst) > 2 {
+      eprintln!("Forced exit requested.");
+      std::process::exit(0);
+    } else {
+      eprintln!("Exit requested, flushing");
+    }
+  }).unwrap();
+
+  let mut source = Source { limit: cli.limit, input: y4m_dec, count: 0, exit };
 
   if video_info.bit_depth == 8 {
     do_encode::<u8, y4m::Decoder<'_, Box<dyn Read>>>(
