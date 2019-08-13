@@ -204,9 +204,9 @@ impl QuantizationContext {
     self.ac_mul_add = divu_gen(self.ac_quant);
 
     self.dc_offset =
-      self.dc_quant as i32 * (if is_intra { 21 } else { 15 }) / 64;
+      self.dc_quant as i32 * (if is_intra { 26 } else { 15 }) / 64;
     self.ac_offset =
-      self.ac_quant as i32 * (if is_intra { 21 } else { 15 }) / 64;
+      self.ac_quant as i32 * (if is_intra { 24 } else { 15 }) / 64;
   }
 
   #[inline]
