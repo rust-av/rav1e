@@ -30,7 +30,7 @@ clap = { version = "2", optional = true, default-features = false }
 libc = "0.2"
 y4m = { version = "0.3.2", optional = true }
 backtrace = "0.3"
-syn = "^0.15.20"
+syn = "^1.0.5"
 quote = "^0.6.10" # hack for proc-macro-hack
 num-traits = "0.2"
 num-derive = "0.2"
