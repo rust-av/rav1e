@@ -61,7 +61,7 @@ signal-hook = { version = "0.1.9", optional = true }
 criterion = "0.2"
 pretty_assertions = "0.6"
 interpolate_name = "0.2.2"
-rand = "0.6"
+rand = "0.7"
 rand_chacha = "0.1"
 semver = "0.9"
 
