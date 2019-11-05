@@ -16,6 +16,7 @@
 #![allow(clippy::verbose_bit_mask)]
 #![allow(clippy::unreadable_literal)]
 #![allow(clippy::many_single_char_names)]
+#![allow(clippy::let_unit_value)]
 
 #[macro_use]
 extern crate err_derive;
@@ -236,9 +237,26 @@ fn do_encode<T: Pixel, D: Decoder>(
   Ok(())
 }
 
+cfg_if::cfg_if! {
+  if #[cfg(feature="tracing")] {
+    use rust_hawktracer::*;
+    fn setup_tracer() {
+      let instance = HawktracerInstance::new();
+      instance.create_listener(HawktracerListenerType::ToFile {
+        file_path: "trace.bin".into(),
+        buffer_size: 4096,
+      });
+    }
+  } else {
+    fn setup_tracer() { }
+  }
+}
+
 fn main() {
   better_panic::install();
   init_logger();
+
+  let _ = setup_tracer();
 
   match run() {
     Ok(()) => {}

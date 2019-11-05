@@ -10,11 +10,13 @@
 #![allow(safe_extern_statics)]
 
 use crate::context::*;
+use crate::hawktracer::*;
 use crate::header::PRIMARY_REF_NONE;
 use crate::util::Pixel;
 use crate::FrameInvariants;
 use crate::FrameState;
 
+#[hawktracer(segmentation_optimize)]
 pub fn segmentation_optimize<T: Pixel>(
   fi: &FrameInvariants<T>, fs: &mut FrameState<T>,
 ) {

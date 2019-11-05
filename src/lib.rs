@@ -63,6 +63,16 @@ cfg_if::cfg_if! {
   }
 }
 
+pub(crate) mod hawktracer {
+  cfg_if::cfg_if! {
+    if #[cfg(feature="rust_hawktracer")] {
+      pub use rust_hawktracer::*;
+    } else {
+      pub use noop_proc_macro::{hawktracer, scoped_tracepoint};
+    }
+  }
+}
+
 #[cfg(any(cargo_c, feature = "capi"))]
 pub mod capi;
 

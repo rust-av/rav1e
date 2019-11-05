@@ -15,6 +15,7 @@ use crate::context::{FrameBlocks, SuperBlockOffset, TileSuperBlockOffset};
 use crate::dist::get_satd;
 use crate::encoder::*;
 use crate::frame::*;
+use crate::hawktracer::*;
 use crate::metrics::calculate_frame_psnr;
 use crate::partition::*;
 use crate::predict::PredictionMode;
@@ -277,6 +278,7 @@ impl<T: Pixel> ContextInner<T> {
     }
   }
 
+  #[hawktracer(send_frame)]
   pub fn send_frame(
     &mut self, frame: Option<Arc<Frame<T>>>, params: Option<FrameParameters>,
   ) -> Result<(), EncoderStatus> {
@@ -766,6 +768,7 @@ impl<T: Pixel> ContextInner<T> {
     }
   }
 
+  #[hawktracer(compute_lookahead_data)]
   pub fn compute_lookahead_data(&mut self) {
     let lookahead_frames = self
       .frame_q
@@ -822,6 +825,7 @@ impl<T: Pixel> ContextInner<T> {
   }
 
   /// Computes the block importances for the current output frame.
+  #[hawktracer(compute_block_importances)]
   fn compute_block_importances(&mut self) {
     // SEF don't need block importances.
     if self.frame_invariants[&self.output_frameno].show_existing_frame {
@@ -1090,6 +1094,7 @@ impl<T: Pixel> ContextInner<T> {
     }
   }
 
+  #[hawktracer(receive_packet)]
   pub fn receive_packet(&mut self) -> Result<Packet<T>, EncoderStatus> {
     if self.done_processing() {
       return Err(EncoderStatus::LimitReached);
