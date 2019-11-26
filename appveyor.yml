@@ -3,9 +3,6 @@ image: Visual Studio 2019
 environment:
   host: x86_64-pc-windows-msvc
   matrix:
-    - platform: x86_64
-      target: x86_64-pc-windows-msvc
-      channel: stable
     - platform: arm64
       target: aarch64-pc-windows-msvc
       channel: nightly
@@ -41,16 +38,3 @@ build_script:
 
 test_script:
     - cargo test --target=%target% --verbose
-
-artifacts:
-    - path: target\$(target)\release\rav1e.exe
-      name: rav1e-$(platform)
-      
-deploy:
-  - provider: GitHub
-    artifact: target\$(target)\release\rav1e.exe
-    auth_token:
-      secure: 'LPBjNyFOg+vBkVR4w+89YVNhByaXBGNwtN6UwkFkWTfPow5oeCbFMtJavU9ZLs+c'
-    prerelease: true
-    on:
-      appveyor_repo_tag: true
