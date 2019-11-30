@@ -17,7 +17,9 @@ use crate::util::*;
 #[cfg(test)]
 use crate::tiling::*;
 
+mod data;
 mod plane;
+
 pub use plane::*;
 
 const FRAME_MARGIN: usize = 16 + SUBPEL_FILTER_SIZE;
