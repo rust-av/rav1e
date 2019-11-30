@@ -58,16 +58,16 @@ pub struct PlaneOffset {
 /// For example, a plane can be a Y luma plane or a U or V chroma plane.
 #[derive(Clone, PartialEq, Eq)]
 pub struct Plane<T, D = PlaneData<T>>
-where T: Pixel, D: DerefMut<Target=[T]> {
+where T: Pixel, D: DerefMut<Target = [T]> {
   pub(crate) data: D,
   /// Plane configuration.
   pub cfg: PlaneConfig,
 }
 
-impl<T: Pixel> Debug for Plane<T, D>
+impl<T: Pixel, D> Debug for Plane<T, D>
 where
   T: Display,
-  D: DerefMut<Target=[T]>
+  D: DerefMut<Target = [T]>
 {
   fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
     write!(f, "Plane {{ data: [{}, ...], cfg: {:?} }}", self.data[0], self.cfg)
@@ -173,6 +173,9 @@ impl<T: Pixel> Plane<T> {
       },
     }
   }
+}
+
+impl<T: Pixel, D: DerefMut<Target = [T]>> Plane<T, D> {
 
   pub(crate) fn pad(&mut self, w: usize, h: usize) {
     let xorigin = self.cfg.xorigin;
@@ -221,16 +224,16 @@ impl<T: Pixel> Plane<T> {
     }
   }
 
-  pub(crate) fn slice(&self, po: PlaneOffset) -> PlaneSlice<'_, T> {
+  pub(crate) fn slice(&self, po: PlaneOffset) -> PlaneSlice<'_, T, D> {
     PlaneSlice { plane: self, x: po.x, y: po.y }
   }
 
-  pub(crate) fn mut_slice(&mut self, po: PlaneOffset) -> PlaneMutSlice<'_, T> {
+  pub(crate) fn mut_slice(&mut self, po: PlaneOffset) -> PlaneMutSlice<'_, T, D> {
     PlaneMutSlice { plane: self, x: po.x, y: po.y }
   }
 
   #[cfg(test)]
-  pub(crate) fn as_mut_slice(&mut self) -> PlaneMutSlice<'_, T> {
+  pub(crate) fn as_mut_slice(&mut self) -> PlaneMutSlice<'_, T, D> {
     self.mut_slice(PlaneOffset { x: 0, y: 0 })
   }
 
@@ -304,7 +307,7 @@ impl<T: Pixel> Plane<T> {
     }
   }
 
-  pub(crate) fn downsample_from(&mut self, src: &Plane<T>) {
+  pub(crate) fn downsample_from(&mut self, src: &Plane<T, D>) {
     let width = self.cfg.width;
     let height = self.cfg.height;
     let xorigin = self.cfg.xorigin;
@@ -331,26 +334,27 @@ impl<T: Pixel> Plane<T> {
   }
 
   /// Iterates over the pixels in the plane, skipping the padding.
-  pub fn iter(&self) -> PlaneIter<'_, T> {
+  pub fn iter(&self) -> PlaneIter<'_, T, D> {
     PlaneIter::new(self)
   }
 
-  pub(crate) fn rows_iter(&self) -> RowsIter<'_, T> {
+  pub(crate) fn rows_iter(&self) -> RowsIter<'_, T, D> {
     RowsIter { plane: self, x: 0, y: 0 }
   }
 }
 
 /// Iterator over plane pixels, skipping padding.
 #[derive(Debug)]
-pub struct PlaneIter<'a, T: Pixel> {
-  plane: &'a Plane<T>,
+pub struct PlaneIter<'a, T, D = PlaneData<T>>
+where T: Pixel, D: DerefMut<Target = [T]> {
+  plane: &'a Plane<T, D>,
   y: usize,
   x: usize,
 }
 
-impl<'a, T: Pixel> PlaneIter<'a, T> {
+impl<'a, T: Pixel, D: DerefMut<Target = [T]>> PlaneIter<'a, T, D> {
   /// Creates a new iterator.
-  pub fn new(plane: &'a Plane<T>) -> Self {
+  pub fn new(plane: &'a Plane<T, D>) -> Self {
     Self { plane, y: 0, x: 0 }
   }
 
@@ -363,7 +367,7 @@ impl<'a, T: Pixel> PlaneIter<'a, T> {
   }
 }
 
-impl<'a, T: Pixel> Iterator for PlaneIter<'a, T> {
+impl<'a, T: Pixel, D: DerefMut<Target = [T]>> Iterator for PlaneIter<'a, T, D> {
   type Item = T;
 
   fn next(&mut self) -> Option<<Self as Iterator>::Item> {
@@ -381,20 +385,21 @@ impl<'a, T: Pixel> Iterator for PlaneIter<'a, T> {
   }
 }
 
-#[derive(Clone, Copy, Debug)]
-pub struct PlaneSlice<'a, T: Pixel> {
-  pub plane: &'a Plane<T>,
+#[derive(Clone, Debug)]
+pub struct PlaneSlice<'a, T, D = PlaneData<T>>
+where T: Pixel, D: DerefMut<Target = [T]> {
+  pub plane: &'a Plane<T, D>,
   pub x: isize,
   pub y: isize,
 }
 
-pub struct RowsIter<'a, T: Pixel> {
-  plane: &'a Plane<T>,
+pub struct RowsIter<'a, T: Pixel, D: DerefMut<Target = [T]>> {
+  plane: &'a Plane<T, D>,
   x: isize,
   y: isize,
 }
 
-impl<'a, T: Pixel> Iterator for RowsIter<'a, T> {
+impl<'a, T: Pixel, D: DerefMut<Target = [T]>> Iterator for RowsIter<'a, T, D> {
   type Item = &'a [T];
 
   fn next(&mut self) -> Option<Self::Item> {
@@ -417,20 +422,20 @@ impl<'a, T: Pixel> Iterator for RowsIter<'a, T> {
   }
 }
 
-impl<'a, T: Pixel> ExactSizeIterator for RowsIter<'a, T> {}
-impl<'a, T: Pixel> FusedIterator for RowsIter<'a, T> {}
+impl<'a, T: Pixel, D: DerefMut<Target = [T]>> ExactSizeIterator for RowsIter<'a, T, D> {}
+impl<'a, T: Pixel, D: DerefMut<Target = [T]>> FusedIterator for RowsIter<'a, T, D> {}
 
-impl<'a, T: Pixel> PlaneSlice<'a, T> {
+impl<'a, T: Pixel, D: DerefMut<Target = [T]>> PlaneSlice<'a, T, D> {
   #[allow(unused)]
   pub fn as_ptr(&self) -> *const T {
     self[0].as_ptr()
   }
 
-  pub fn rows_iter(&self) -> RowsIter<'_, T> {
+  pub fn rows_iter(&self) -> RowsIter<'_, T, D> {
     RowsIter { plane: self.plane, x: self.x, y: self.y }
   }
 
-  pub fn clamp(&self) -> PlaneSlice<'a, T> {
+  pub fn clamp(&self) -> PlaneSlice<'a, T, D> {
     PlaneSlice {
       plane: self.plane,
       x: self
@@ -444,7 +449,7 @@ impl<'a, T: Pixel> PlaneSlice<'a, T> {
     }
   }
 
-  pub fn subslice(&self, xo: usize, yo: usize) -> PlaneSlice<'a, T> {
+  pub fn subslice(&self, xo: usize, yo: usize) -> PlaneSlice<'a, T, D> {
     PlaneSlice {
       plane: self.plane,
       x: self.x + xo as isize,
@@ -452,17 +457,17 @@ impl<'a, T: Pixel> PlaneSlice<'a, T> {
     }
   }
 
-  pub fn reslice(&self, xo: isize, yo: isize) -> PlaneSlice<'a, T> {
+  pub fn reslice(&self, xo: isize, yo: isize) -> PlaneSlice<'a, T, D> {
     PlaneSlice { plane: self.plane, x: self.x + xo, y: self.y + yo }
   }
 
   /// A slice starting i pixels above the current one.
-  pub fn go_up(&self, i: usize) -> PlaneSlice<'a, T> {
+  pub fn go_up(&self, i: usize) -> PlaneSlice<'a, T, D> {
     PlaneSlice { plane: self.plane, x: self.x, y: self.y - i as isize }
   }
 
   /// A slice starting i pixels to the left of the current one.
-  pub fn go_left(&self, i: usize) -> PlaneSlice<'a, T> {
+  pub fn go_left(&self, i: usize) -> PlaneSlice<'a, T, D> {
     PlaneSlice { plane: self.plane, x: self.x - i as isize, y: self.y }
   }
 
@@ -475,7 +480,7 @@ impl<'a, T: Pixel> PlaneSlice<'a, T> {
   }
 }
 
-impl<'a, T: Pixel> Index<usize> for PlaneSlice<'a, T> {
+impl<'a, T: Pixel, D: DerefMut<Target = [T]>> Index<usize> for PlaneSlice<'a, T, D> {
   type Output = [T];
   fn index(&self, index: usize) -> &Self::Output {
     let range = self.plane.row_range(self.x, self.y + index as isize);
@@ -483,20 +488,21 @@ impl<'a, T: Pixel> Index<usize> for PlaneSlice<'a, T> {
   }
 }
 
-pub struct PlaneMutSlice<'a, T: Pixel> {
-  pub plane: &'a mut Plane<T>,
+pub struct PlaneMutSlice<'a, T, D = PlaneData<T>>
+where T: Pixel, D: DerefMut<Target = [T]> {
+  pub plane: &'a mut Plane<T, D>,
   pub x: isize,
   pub y: isize,
 }
 
-pub struct RowsIterMut<'a, T: Pixel> {
-  plane: *mut Plane<T>,
+pub struct RowsIterMut<'a, T: Pixel, D: DerefMut<Target = [T]>> {
+  plane: *mut Plane<T, D>,
   x: isize,
   y: isize,
-  phantom: PhantomData<&'a mut Plane<T>>,
+  phantom: PhantomData<&'a mut Plane<T, D>>,
 }
 
-impl<'a, T: Pixel> Iterator for RowsIterMut<'a, T> {
+impl<'a, T: Pixel, D:  DerefMut<Target = [T]>> Iterator for RowsIterMut<'a, T, D> {
   type Item = &'a mut [T];
 
   fn next(&mut self) -> Option<Self::Item> {
@@ -523,18 +529,18 @@ impl<'a, T: Pixel> Iterator for RowsIterMut<'a, T> {
   }
 }
 
-impl<'a, T: Pixel> ExactSizeIterator for RowsIterMut<'a, T> {}
-impl<'a, T: Pixel> FusedIterator for RowsIterMut<'a, T> {}
+impl<'a, T: Pixel, D: DerefMut<Target = [T]>> ExactSizeIterator for RowsIterMut<'a, T, D> {}
+impl<'a, T: Pixel, D: DerefMut<Target = [T]>> FusedIterator for RowsIterMut<'a, T, D> {}
 
-impl<'a, T: Pixel> PlaneMutSlice<'a, T> {
+impl<'a, T: Pixel, D: DerefMut<Target = [T]>> PlaneMutSlice<'a, T, D> {
   #[allow(unused)]
-  pub fn rows_iter(&self) -> RowsIter<'_, T> {
+  pub fn rows_iter(&self) -> RowsIter<'_, T, D> {
     RowsIter { plane: self.plane, x: self.x, y: self.y }
   }
 
-  pub fn rows_iter_mut(&mut self) -> RowsIterMut<'_, T> {
+  pub fn rows_iter_mut(&mut self) -> RowsIterMut<'_, T, D> {
     RowsIterMut {
-      plane: self.plane as *mut Plane<T>,
+      plane: self.plane as *mut Plane<T, D>,
       x: self.x,
       y: self.y,
       phantom: PhantomData,
@@ -542,7 +548,7 @@ impl<'a, T: Pixel> PlaneMutSlice<'a, T> {
   }
 
   #[allow(unused)]
-  pub fn subslice(&mut self, xo: usize, yo: usize) -> PlaneMutSlice<'_, T> {
+  pub fn subslice(&mut self, xo: usize, yo: usize) -> PlaneMutSlice<'_, T, D> {
     PlaneMutSlice {
       plane: self.plane,
       x: self.x + xo as isize,
@@ -551,7 +557,7 @@ impl<'a, T: Pixel> PlaneMutSlice<'a, T> {
   }
 }
 
-impl<'a, T: Pixel> Index<usize> for PlaneMutSlice<'a, T> {
+impl<'a, T: Pixel, D:  DerefMut<Target = [T]>> Index<usize> for PlaneMutSlice<'a, T, D> {
   type Output = [T];
   fn index(&self, index: usize) -> &Self::Output {
     let range = self.plane.row_range(self.x, self.y + index as isize);
@@ -559,7 +565,7 @@ impl<'a, T: Pixel> Index<usize> for PlaneMutSlice<'a, T> {
   }
 }
 
-impl<'a, T: Pixel> IndexMut<usize> for PlaneMutSlice<'a, T> {
+impl<'a, T: Pixel, D:  DerefMut<Target = [T]>> IndexMut<usize> for PlaneMutSlice<'a, T, D> {
   fn index_mut(&mut self, index: usize) -> &mut Self::Output {
     let range = self.plane.row_range(self.x, self.y + index as isize);
     &mut self.plane.data[range]
