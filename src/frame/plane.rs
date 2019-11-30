@@ -64,9 +64,10 @@ where T: Pixel, D: DerefMut<Target=[T]> {
   pub cfg: PlaneConfig,
 }
 
-impl<T: Pixel> Debug for Plane<T>
+impl<T: Pixel> Debug for Plane<T, D>
 where
   T: Display,
+  D: DerefMut<Target=[T]>
 {
   fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
     write!(f, "Plane {{ data: [{}, ...], cfg: {:?} }}", self.data[0], self.cfg)
