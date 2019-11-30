@@ -219,7 +219,7 @@ impl PredictionMode {
           get_params(&rec.frame.planes[p], frame_po, mvs[0]);
         put_8tap(
           dst,
-          src,
+          &src,
           width,
           height,
           col_frac,
@@ -241,7 +241,7 @@ impl PredictionMode {
             get_params(&rec.frame.planes[p], frame_po, mvs[i]);
           prep_8tap(
             &mut tmp[i].array,
-            src,
+            &src,
             width,
             height,
             col_frac,

@@ -83,7 +83,7 @@ const fn get_2d_mode_idx(mode_x: FilterMode, mode_y: FilterMode) -> usize {
 }
 
 pub fn put_8tap<T: Pixel>(
-  dst: &mut PlaneRegionMut<'_, T>, src: PlaneSlice<'_, T>, width: usize,
+  dst: &mut PlaneRegionMut<'_, T>, src: &PlaneSlice<'_, T>, width: usize,
   height: usize, col_frac: i32, row_frac: i32, mode_x: FilterMode,
   mode_y: FilterMode, bit_depth: usize, cpu: CpuFeatureLevel,
 ) {
@@ -149,7 +149,7 @@ pub fn put_8tap<T: Pixel>(
 }
 
 pub fn prep_8tap<T: Pixel>(
-  tmp: &mut [i16], src: PlaneSlice<'_, T>, width: usize, height: usize,
+  tmp: &mut [i16], src: &PlaneSlice<'_, T>, width: usize, height: usize,
   col_frac: i32, row_frac: i32, mode_x: FilterMode, mode_y: FilterMode,
   bit_depth: usize, cpu: CpuFeatureLevel,
 ) {

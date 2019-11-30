@@ -210,7 +210,7 @@ pub(crate) mod native {
 
   #[cold_for_target_arch("x86_64")]
   pub fn put_8tap<T: Pixel>(
-    dst: &mut PlaneRegionMut<'_, T>, src: PlaneSlice<'_, T>, width: usize,
+    dst: &mut PlaneRegionMut<'_, T>, src: &PlaneSlice<'_, T>, width: usize,
     height: usize, col_frac: i32, row_frac: i32, mode_x: FilterMode,
     mode_y: FilterMode, bit_depth: usize, _cpu: CpuFeatureLevel,
   ) {
@@ -307,7 +307,7 @@ pub(crate) mod native {
 
   #[cold_for_target_arch("x86_64")]
   pub fn prep_8tap<T: Pixel>(
-    tmp: &mut [i16], src: PlaneSlice<'_, T>, width: usize, height: usize,
+    tmp: &mut [i16], src: &PlaneSlice<'_, T>, width: usize, height: usize,
     col_frac: i32, row_frac: i32, mode_x: FilterMode, mode_y: FilterMode,
     bit_depth: usize, _cpu: CpuFeatureLevel,
   ) {
