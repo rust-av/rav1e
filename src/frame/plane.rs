@@ -11,7 +11,7 @@ use std::fmt::{Debug, Display, Formatter};
 use std::iter::FusedIterator;
 use std::marker::PhantomData;
 use std::mem;
-use std::ops::{Index, IndexMut, Range};
+use std::ops::{Index, IndexMut, Range, DerefMut};
 
 use crate::frame::data::PlaneData;
 use crate::tiling::*;
@@ -57,8 +57,9 @@ pub struct PlaneOffset {
 ///
 /// For example, a plane can be a Y luma plane or a U or V chroma plane.
 #[derive(Clone, PartialEq, Eq)]
-pub struct Plane<T: Pixel> {
-  pub(crate) data: PlaneData<T>,
+pub struct Plane<T, D = PlaneData<T>>
+where T: Pixel, D: DerefMut<Target=[T]> {
+  pub(crate) data: D,
   /// Plane configuration.
   pub cfg: PlaneConfig,
 }
