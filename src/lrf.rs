@@ -170,14 +170,17 @@ pub(crate) mod native {
     let d: usize = r * 2 + 1;
     let n: usize = d * d;
     let one_over_n = if r == 1 { 455 } else { 164 };
+    let x_range = start_x..stripe_w + 2;
+    let af_iter = af[x_range.clone()].iter_mut();
+    let bf_iter = bf[x_range.clone()].iter_mut();
 
-    for x in start_x..stripe_w + 2 {
+    for (x, (af, bf)) in x_range.zip(af_iter.zip(bf_iter)) {
       let sum = get_integral_square(iimg, iimg_stride, x, y, d);
       let ssq = get_integral_square(iimg_sq, iimg_stride, x, y, d);
       let (reta, retb) =
         sgrproj_sum_finish(ssq, sum, n as u32, one_over_n, s, bdm8);
-      af[x] = reta;
-      bf[x] = retb;
+      *af = reta;
+      *bf = retb;
     }
   }
 
