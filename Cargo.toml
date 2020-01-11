@@ -70,6 +70,7 @@ scan_fmt = { version = "0.2.3", optional = true, default-features = false }
 ivf = { version = "0.1", path = "ivf/", optional = true }
 v_frame = { version = "0.1", path = "v_frame/" }
 rayon = "1.0"
+crossbeam = "0.7"
 toml = { version = "0.5", optional = true }
 arrayvec = "0.5"
 better-panic = { version = "0.2", optional = true }

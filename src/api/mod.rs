@@ -14,6 +14,8 @@ pub mod color;
 pub mod config;
 /// Encoder Context
 pub mod context;
+/// Channel-based encoder
+pub mod channel;
 /// Internal implementation
 pub(crate) mod internal;
 /// Lookahead-specific methods
