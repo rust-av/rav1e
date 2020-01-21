@@ -22,6 +22,11 @@ use crate::util::Pixel;
 use std::io;
 use std::sync::Arc;
 
+/// Endpoint to send previous-pass statistics data
+pub struct PassDataSender(Sender<Box<[u8]>>);
+/// Endpoint to receive previous-pass statistics data
+pub struct PassDataReceiver(Receiver<Box<[u8]>>);
+
 /// Endpoint to send frames
 pub struct FrameSender<T: Pixel>(
   Sender<(Option<Arc<Frame<T>>>, Option<FrameParameters>)>,
@@ -110,79 +115,75 @@ impl Config {
 
     sequence_header_inner(&seq).unwrap()
   }
-}
 
-/// Create a single pass encoder channel
-///
-/// The `PacketReceiver<T>` endpoint may block if not enough Frames are
-/// sent through the `FrameSender<T>` endpoint.
-///
-/// Drop the `FrameSender<T>` endpoint to flush the encoder.
-pub fn new_channel<T: Pixel>(
-  cfg: &Config,
-) -> Result<(FrameSender<T>, PacketReceiver<T>), InvalidConfig> {
-  let (send_frame, receive_frame) = unbounded();
-  let (send_packet, receive_packet) = unbounded();
+  /// Create a single pass encoder channel
+  ///
+  /// The `PacketReceiver<T>` endpoint may block if not enough Frames are
+  /// sent through the `FrameSender<T>` endpoint.
+  ///
+  /// Drop the `FrameSender<T>` endpoint to flush the encoder.
+  pub fn new_channel<T: Pixel>(
+    &self,
+  ) -> Result<(FrameSender<T>, PacketReceiver<T>), InvalidConfig> {
+    let (send_frame, receive_frame) = unbounded();
+    let (send_packet, receive_packet) = unbounded();
 
-  let mut inner = cfg.new_inner()?;
-  let pool =
-    rayon::ThreadPoolBuilder::new().num_threads(cfg.threads).build().unwrap();
+    let mut inner = self.new_inner()?;
+    let pool = rayon::ThreadPoolBuilder::new()
+      .num_threads(self.threads)
+      .build()
+      .unwrap();
 
-  pool.spawn(move || {
-    for f in receive_frame.iter() {
-      if !inner.needs_more_fi_lookahead() {
-        // needs_more_fi_lookahead() should guard for missing output_frameno
-        // already.
-        // this call should return either Ok or Err(Encoded)
-        if let Some(p) = inner.receive_packet().ok() {
-          send_packet.send(p).unwrap();
+    pool.spawn(move || {
+      for f in receive_frame.iter() {
+        if !inner.needs_more_fi_lookahead() {
+          // needs_more_fi_lookahead() should guard for missing output_frameno
+          // already.
+          // this call should return either Ok or Err(Encoded)
+          if let Some(p) = inner.receive_packet().ok() {
+            send_packet.send(p).unwrap();
+          }
+        }
+
+        let (frame, params) = f;
+        let _ = inner.send_frame(frame, params); // TODO make sure it cannot fail.
+      }
+
+      inner.limit = Some(inner.frame_count);
+      let _ = inner.send_frame(None, None);
+
+      loop {
+        let r = inner.receive_packet();
+        match r {
+          Ok(p) => {
+            send_packet.send(p).unwrap();
+          }
+          Err(EncoderStatus::LimitReached) => break,
+          Err(EncoderStatus::Encoded) => {}
+          _ => unreachable!(),
         }
       }
 
-      let (frame, params) = f;
-      let _ = inner.send_frame(frame, params); // TODO make sure it cannot fail.
-    }
+      // drop(send_packet); // This happens implicitly
+    });
 
-    inner.limit = Some(inner.frame_count);
-    let _ = inner.send_frame(None, None);
+    Ok((FrameSender(send_frame), PacketReceiver(receive_packet)))
+  }
 
-    loop {
-      let r = inner.receive_packet();
-      eprintln!("got {:?}", r);
-      match r {
-        Ok(p) => {
-          send_packet.send(p).unwrap();
-        }
-        Err(EncoderStatus::LimitReached) => break,
-        Err(EncoderStatus::Encoded) => {}
-        _ => unreachable!(),
-      }
-    }
-
-    // drop(send_packet); // This happens implicitly
-  });
-
-  Ok((FrameSender(send_frame), PacketReceiver(receive_packet)))
-}
-
-/// Endpoint to send previous-pass statistics data
-pub struct PassDataSender(Sender<Box<[u8]>>);
-/// Endpoint to receive previous-pass statistics data
-pub struct PassDataReceiver(Receiver<Box<[u8]>>);
-
-/// Create a multipass encoder channel
-///
-/// To setup a first-pass encode drop the `PassDataSender` before sending the
-/// first Frame.
-///
-/// The `PacketReceiver<T>` may block if not enough pass statistics data
-/// are sent through the `PassDataSender` endpoint
-///
-/// Drop the `Sender<F>` endpoint to flush the encoder.
-/// The last buffer in the Receiver<Box<[u8]>>
-pub fn new_multipass_channel<T: Pixel>(
-  cfg: &Config,
-) -> ((FrameSender<T>, PacketReceiver<T>), (PassDataSender, PassDataReceiver))
-{
-  unimplemented!()
+  /// Create a multipass encoder channel
+  ///
+  /// To setup a first-pass encode drop the `PassDataSender` before sending the
+  /// first Frame.
+  ///
+  /// The `PacketReceiver<T>` may block if not enough pass statistics data
+  /// are sent through the `PassDataSender` endpoint
+  ///
+  /// Drop the `Sender<F>` endpoint to flush the encoder.
+  /// The last buffer in the Receiver<Box<[u8]>>
+  pub fn new_multipass_channel<T: Pixel>(
+    &self,
+  ) -> ((FrameSender<T>, PacketReceiver<T>), (PassDataSender, PassDataReceiver))
+  {
+    unimplemented!()
+  }
 }

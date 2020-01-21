@@ -108,7 +108,7 @@ fn flush_ch(low_lantency: bool, no_scene_detection: bool) {
 
   let limit = 41;
 
-  let (sf, rp) = channel::new_channel::<u8>(&cfg).unwrap();
+  let (sf, rp) = cfg.new_channel::<u8>().unwrap();
 
   for _ in 0..limit {
     let input = cfg.new_frame();
@@ -122,7 +122,7 @@ fn flush_ch(low_lantency: bool, no_scene_detection: bool) {
   for _ in 0..limit {
     let _ = rp
       .recv()
-      .map(|p| {
+      .map(|_| {
         eprintln!("Packet Received {}/{}", count, limit);
         count += 1;
       })
