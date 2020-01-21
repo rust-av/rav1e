@@ -8,14 +8,14 @@
 // PATENTS file, you can obtain it at www.aomedia.org/license/patent.
 #![deny(missing_docs)]
 
+/// Channel-based encoder
+pub mod channel;
 /// Color model information
 pub mod color;
 /// Encoder Configuration
 pub mod config;
 /// Encoder Context
 pub mod context;
-/// Channel-based encoder
-pub mod channel;
 /// Internal implementation
 pub(crate) mod internal;
 /// Lookahead-specific methods

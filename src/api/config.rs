@@ -706,6 +706,41 @@ fn check_tile_log2(n: usize) -> bool {
 }
 
 impl Config {
+  pub(crate) fn new_inner<T: Pixel>(
+    &self,
+  ) -> Result<ContextInner<T>, InvalidConfig> {
+    assert!(
+      8 * std::mem::size_of::<T>() >= self.enc.bit_depth,
+      "The Pixel u{} does not match the Config bit_depth {}",
+      8 * std::mem::size_of::<T>(),
+      self.enc.bit_depth
+    );
+
+    self.validate()?;
+
+    // Because we don't have a FrameInvariants yet,
+    // this is the only way to get the CpuFeatureLevel in use.
+    // Since we only call this once, this shouldn't cause
+    // performance issues.
+    info!("CPU Feature Level: {}", CpuFeatureLevel::default());
+
+    let mut config = self.enc;
+    config.set_key_frame_interval(
+      config.min_key_frame_interval,
+      config.max_key_frame_interval,
+    );
+
+    // FIXME: inter unsupported with 4:2:2 and 4:4:4 chroma sampling
+    let chroma_sampling = config.chroma_sampling;
+
+    // FIXME: tx partition for intra not supported for chroma 422
+    if chroma_sampling == ChromaSampling::Cs422 {
+      config.speed_settings.rdo_tx_decision = false;
+    }
+
+    Ok(ContextInner::new(&config))
+  }
+
   /// Creates a [`Context`] with this configuration.
   ///
   /// # Examples
@@ -722,41 +757,13 @@ impl Config {
   ///
   /// [`Context`]: struct.Context.html
   pub fn new_context<T: Pixel>(&self) -> Result<Context<T>, InvalidConfig> {
-    assert!(
-      8 * std::mem::size_of::<T>() >= self.enc.bit_depth,
-      "The Pixel u{} does not match the Config bit_depth {}",
-      8 * std::mem::size_of::<T>(),
-      self.enc.bit_depth
-    );
-
-    self.validate()?;
-
-    // Because we don't have a FrameInvariants yet,
-    // this is the only way to get the CpuFeatureLevel in use.
-    // Since we only call this once, this shouldn't cause
-    // performance issues.
-    info!("CPU Feature Level: {}", CpuFeatureLevel::default());
-
     let pool = crate::rayon::ThreadPoolBuilder::new()
       .num_threads(self.threads)
       .build()
       .unwrap();
 
-    let mut config = self.enc;
-    config.set_key_frame_interval(
-      config.min_key_frame_interval,
-      config.max_key_frame_interval,
-    );
-
-    // FIXME: inter unsupported with 4:2:2 and 4:4:4 chroma sampling
-    let chroma_sampling = config.chroma_sampling;
-
-    // FIXME: tx partition for intra not supported for chroma 422
-    if chroma_sampling == ChromaSampling::Cs422 {
-      config.speed_settings.rdo_tx_decision = false;
-    }
-
-    let inner = ContextInner::new(&config);
+    let inner = self.new_inner()?;
+    let config = inner.config;
 
     Ok(Context { is_flushing: false, inner, pool, config })
   }
