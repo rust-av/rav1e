@@ -18,7 +18,7 @@ use std::io::Write;
 use crate::error::*;
 
 pub struct IvfMuxer {
-  output: Box<dyn Write>,
+  output: Box<dyn Write + Send>,
 }
 
 impl Muxer for IvfMuxer {
@@ -45,7 +45,7 @@ impl Muxer for IvfMuxer {
 }
 
 impl IvfMuxer {
-  pub fn open(path: &str) -> Result<Box<dyn Muxer>, CliError> {
+  pub fn open(path: &str) -> Result<Box<dyn Muxer + Send>, CliError> {
     let ivf = IvfMuxer {
       output: match path {
         "-" => Box::new(std::io::stdout()),

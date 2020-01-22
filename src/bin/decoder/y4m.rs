@@ -16,7 +16,7 @@ use crate::decoder::VideoDetails;
 use crate::Frame;
 use rav1e::prelude::*;
 
-impl Decoder for y4m::Decoder<'_, Box<dyn Read>> {
+impl Decoder for y4m::Decoder<'_, Box<dyn Read + Send>> {
   fn get_video_details(&self) -> VideoDetails {
     let width = self.get_width();
     let height = self.get_height();

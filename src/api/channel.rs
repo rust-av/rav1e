@@ -65,7 +65,9 @@ impl<T: Pixel> PacketReceiver<T> {
   pub fn len(&self) -> usize {
     self.0.len()
   }
-  // TODO: proxy more methods
+  pub fn iter(&self) -> Iter<Packet<T>> {
+    self.0.iter()
+  }
 }
 
 // TODO: use a separate struct?
@@ -125,7 +127,8 @@ impl Config {
   pub fn new_channel<T: Pixel>(
     &self,
   ) -> Result<(FrameSender<T>, PacketReceiver<T>), InvalidConfig> {
-    let (send_frame, receive_frame) = unbounded();
+    let (send_frame, receive_frame) =
+      bounded(self.enc.rdo_lookahead_frames as usize * 2); // TODO: user settable
     let (send_packet, receive_packet) = unbounded();
 
     let mut inner = self.new_inner()?;
@@ -136,11 +139,13 @@ impl Config {
 
     pool.spawn(move || {
       for f in receive_frame.iter() {
-        if !inner.needs_more_fi_lookahead() {
+        // info!("frame in {}", inner.frame_count);
+        while !inner.needs_more_fi_lookahead() {
           // needs_more_fi_lookahead() should guard for missing output_frameno
           // already.
           // this call should return either Ok or Err(Encoded)
           if let Some(p) = inner.receive_packet().ok() {
+            // warn!("packet out {}", p.input_frameno);
             send_packet.send(p).unwrap();
           }
         }
@@ -156,6 +161,7 @@ impl Config {
         let r = inner.receive_packet();
         match r {
           Ok(p) => {
+            // warn!("Sending out {}", p.input_frameno);
             send_packet.send(p).unwrap();
           }
           Err(EncoderStatus::LimitReached) => break,

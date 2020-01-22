@@ -21,7 +21,7 @@ use std::path::Path;
 
 use crate::error::*;
 
-pub trait Muxer {
+pub trait Muxer: Send {
   fn write_header(
     &mut self, width: usize, height: usize, framerate_num: usize,
     framerate_den: usize,
@@ -32,7 +32,7 @@ pub trait Muxer {
   fn flush(&mut self) -> io::Result<()>;
 }
 
-pub fn create_muxer(path: &str) -> Result<Box<dyn Muxer>, CliError> {
+pub fn create_muxer(path: &str) -> Result<Box<dyn Muxer + Send>, CliError> {
   if path == "-" {
     return IvfMuxer::open(path);
   }

@@ -20,9 +20,9 @@ use std::io;
 use std::io::prelude::*;
 
 pub struct EncoderIO {
-  pub input: Box<dyn Read>,
-  pub output: Box<dyn Muxer>,
-  pub rec: Option<Box<dyn Write>>,
+  pub input: Box<dyn Read + Send + 'static>,
+  pub output: Box<dyn Muxer + Send + 'static>,
+  pub rec: Option<Box<dyn Write + Send + 'static>>,
 }
 
 #[derive(PartialEq)]
@@ -423,16 +423,16 @@ pub fn parse_cli() -> Result<CliOptions, CliError> {
     Some(f) => Some(Box::new(
       File::create(&f)
         .map_err(|e| e.context("Cannot create reconstruction file"))?,
-    ) as Box<dyn Write>),
+    ) as _),
     None => None,
   };
 
   let io = EncoderIO {
     input: match matches.value_of("INPUT").unwrap() {
-      "-" => Box::new(io::stdin()) as Box<dyn Read>,
+      "-" => Box::new(io::stdin()) as _,
       f => Box::new(
         File::open(&f).map_err(|e| e.context("Cannot open input file"))?,
-      ) as Box<dyn Read>,
+      ) as _,
     },
     output: create_muxer(matches.value_of("OUTPUT").unwrap())?,
     rec,
