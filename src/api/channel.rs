@@ -27,27 +27,28 @@ pub struct PassDataSender(Sender<Box<[u8]>>);
 /// Endpoint to receive previous-pass statistics data
 pub struct PassDataReceiver(Receiver<Box<[u8]>>);
 
+pub type FrameInput<T> = (Option<Arc<Frame<T>>>, Option<FrameParameters>);
+
 /// Endpoint to send frames
-pub struct FrameSender<T: Pixel>(
-  Sender<(Option<Arc<Frame<T>>>, Option<FrameParameters>)>,
-);
+pub struct FrameSender<T: Pixel>(Sender<FrameInput<T>>);
 
 impl<T: Pixel> FrameSender<T> {
   pub fn try_send<F: IntoFrame<T>>(
     &self, frame: F,
-  ) -> Result<(), TrySendError<(Option<Arc<Frame<T>>>, Option<FrameParameters>)>>
-  {
+  ) -> Result<(), TrySendError<FrameInput<T>>> {
     self.0.try_send(frame.into())
   }
 
   pub fn send<F: IntoFrame<T>>(
     &self, frame: F,
-  ) -> Result<(), SendError<(Option<Arc<Frame<T>>>, Option<FrameParameters>)>>
-  {
+  ) -> Result<(), SendError<FrameInput<T>>> {
     self.0.send(frame.into())
   }
   pub fn len(&self) -> usize {
     self.0.len()
+  }
+  pub fn is_empty(&self) -> bool {
+    self.0.is_empty()
   }
   // TODO: proxy more methods
 }
@@ -64,6 +65,9 @@ impl<T: Pixel> PacketReceiver<T> {
   }
   pub fn len(&self) -> usize {
     self.0.len()
+  }
+  pub fn is_empty(&self) -> bool {
+    self.0.is_empty()
   }
   pub fn iter(&self) -> Iter<Packet<T>> {
     self.0.iter()
@@ -144,7 +148,7 @@ impl Config {
           // needs_more_fi_lookahead() should guard for missing output_frameno
           // already.
           // this call should return either Ok or Err(Encoded)
-          if let Some(p) = inner.receive_packet().ok() {
+          if let Ok(p) = inner.receive_packet() {
             // warn!("packet out {}", p.input_frameno);
             send_packet.send(p).unwrap();
           }

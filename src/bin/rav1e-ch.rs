@@ -72,12 +72,10 @@ impl<D: Decoder + Send> Source<D> {
         }
         self.count += 1;
         let _ = sf.send(frame);
-        return true;
+        true
       }
-      _ => {
-        return false;
-      }
-    };
+      _ => false,
+    }
   }
 }
 
