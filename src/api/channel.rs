@@ -10,6 +10,7 @@
 
 use crate::api::color::*;
 use crate::api::config::*;
+use crate::api::internal::ContextInner;
 use crate::api::util::*;
 
 use bitstream_io::*;
@@ -24,8 +25,10 @@ use std::sync::Arc;
 
 /// Endpoint to send previous-pass statistics data
 pub struct PassDataSender(Sender<Box<[u8]>>);
-/// Endpoint to receive previous-pass statistics data
+/// Endpoint to receive current-pass statistics data
 pub struct PassDataReceiver(Receiver<Box<[u8]>>);
+
+pub type PassData = (PassDataSender, PassDataReceiver);
 
 pub type FrameInput<T> = (Option<Arc<Frame<T>>>, Option<FrameParameters>);
 
@@ -73,6 +76,8 @@ impl<T: Pixel> PacketReceiver<T> {
     self.0.iter()
   }
 }
+
+pub type VideoData<T> = (FrameSender<T>, PacketReceiver<T>);
 
 // TODO: use a separate struct?
 impl Config {
@@ -192,8 +197,138 @@ impl Config {
   /// The last buffer in the Receiver<Box<[u8]>>
   pub fn new_multipass_channel<T: Pixel>(
     &self,
-  ) -> ((FrameSender<T>, PacketReceiver<T>), (PassDataSender, PassDataReceiver))
-  {
-    unimplemented!()
+  ) -> Result<(VideoData<T>, PassData), InvalidConfig> {
+    // TODO: make it user-settable
+    let input_len = self.enc.rdo_lookahead_frames as usize * 2;
+
+    let (send_frame, receive_frame) = bounded(input_len);
+    let (send_packet, receive_packet) = unbounded();
+
+    let (send_rc_pass1, receive_rc_pass1) = bounded(input_len);
+    let (send_rc_pass2, receive_rc_pass2) = unbounded();
+
+    if self.enc.bitrate <= 0 {
+      return Err(InvalidConfig::InvalidMultiPassBitrate);
+    }
+
+    let mut inner = self.new_inner()?;
+    let pool = rayon::ThreadPoolBuilder::new()
+      .num_threads(self.threads)
+      .build()
+      .unwrap();
+
+    fn receive_packet_impl<T: Pixel>(
+      inner: &mut ContextInner<T>, send_rc_pass1: Option<&Sender<Box<[u8]>>>,
+      receive_rc_pass2: Option<&Receiver<Box<[u8]>>>,
+    ) -> Result<Packet<T>, EncoderStatus> {
+      if let Some(r) = receive_rc_pass2 {
+        // TODO: Consider a graceful failure path
+        r.recv()
+          .map(|data| {
+            // check data.len() vs twopass_bytes_needed()
+            inner
+              .rc_state
+              .twopass_in(Some(data.as_ref()))
+              .expect("Faulty pass data");
+          })
+          .unwrap();
+      }
+
+      if let Some(s) = send_rc_pass1 {
+        let params =
+          inner.rc_state.get_twopass_out_params(inner, inner.output_frameno);
+
+        let _ = inner.rc_state.twopass_out(params).map(|data| {
+          s.send(data.to_vec().into_boxed_slice()).unwrap();
+        });
+      }
+
+      inner.receive_packet()
+    }
+
+    pool.spawn(move || {
+      // Feed in the summary
+      let second_pass = receive_rc_pass2
+        .recv()
+        .map(|data: Box<[u8]>| {
+          // check data.len() vs twopass_bytes_needed()
+          inner
+            .rc_state
+            .twopass_in(Some(data.as_ref()))
+            .expect("Faulty pass data");
+          true
+        })
+        .unwrap_or(false);
+
+      // Send the placeholder data
+      let first_pass = {
+        let params =
+          inner.rc_state.get_twopass_out_params(&inner, inner.output_frameno);
+
+        let data = inner.rc_state.twopass_out(params).unwrap();
+
+        send_rc_pass1.send(data.to_vec().into_boxed_slice()).is_ok()
+      };
+      /*
+            let receive_packet = match (first_pass, second_pass) {
+              (true, true) => move |inner: &mut ContextInner| {
+                receive_packet_impl(inner, Some(
+              }
+            }
+      */
+
+      let second_pass_recv =
+        if second_pass { Some(receive_rc_pass2) } else { None };
+
+      let first_pass_send =
+        if first_pass { Some(send_rc_pass1) } else { None };
+
+      for f in receive_frame.iter() {
+        // info!("frame in {}", inner.frame_count);
+        while !inner.needs_more_fi_lookahead() {
+          // needs_more_fi_lookahead() should guard for missing output_frameno
+          // already.
+          // this call should return either Ok or Err(Encoded)
+          if let Ok(p) = receive_packet_impl(
+            &mut inner,
+            first_pass_send.as_ref(),
+            second_pass_recv.as_ref(),
+          ) {
+            // warn!("packet out {}", p.input_frameno);
+            send_packet.send(p).unwrap();
+          }
+        }
+
+        let (frame, params) = f;
+        let _ = inner.send_frame(frame, params); // TODO make sure it cannot fail.
+      }
+
+      inner.limit = Some(inner.frame_count);
+      let _ = inner.send_frame(None, None);
+
+      loop {
+        let r = receive_packet_impl(
+          &mut inner,
+          first_pass_send.as_ref(),
+          second_pass_recv.as_ref(),
+        );
+        match r {
+          Ok(p) => {
+            // warn!("Sending out {}", p.input_frameno);
+            send_packet.send(p).unwrap();
+          }
+          Err(EncoderStatus::LimitReached) => break,
+          Err(EncoderStatus::Encoded) => {}
+          _ => unreachable!(),
+        }
+      }
+
+      // drop(send_packet); // This happens implicitly
+    });
+
+    Ok((
+      (FrameSender(send_frame), PacketReceiver(receive_packet)),
+      (PassDataSender(send_rc_pass2), PassDataReceiver(receive_rc_pass1)),
+    ))
   }
 }
