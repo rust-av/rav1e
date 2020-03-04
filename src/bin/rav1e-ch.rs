@@ -38,8 +38,10 @@ use crate::decoder::Decoder;
 use crate::decoder::VideoDetails;
 use crate::muxer::*;
 use std::fs::File;
-use std::io::Write;
+use std::io::{Read, Write};
 use std::sync::Arc;
+
+use itertools::*;
 
 struct Source<D: Decoder + Send> {
   limit: usize,
@@ -85,27 +87,63 @@ fn do_encode<T: Pixel, D: Decoder + Send>(
   pass1file_name: Option<&String>, pass2file_name: Option<&String>,
   mut y4m_enc: Option<y4m::Encoder<'_, Box<dyn Write + Send>>>,
 ) -> Result<(), CliError> {
-  let (sf, rp) = cfg
-    .new_channel::<T>()
-    .map_err(|e| e.context("Invalid encoder settings"))?;
-
-  let mut _pass2file = pass2file_name.map(|f| {
+  let pass2file = pass2file_name.map(|f| {
     File::open(f).unwrap_or_else(|_| {
       panic!("Unable to open \"{}\" for reading two-pass data.", f)
     })
   });
-  let mut _pass1file = pass1file_name.map(|f| {
+  let pass1file = pass1file_name.map(|f| {
     File::create(f).unwrap_or_else(|_| {
       panic!("Unable to open \"{}\" for writing two-pass data.", f)
     })
   });
 
-  //  let mut buffer: [u8; 80] = [0; 80];
-  //  let mut buf_pos = 0;
+  let ((sf, rp), (pass2, pass1)) =
+    if pass1file.is_none() && pass2file.is_none() {
+      (
+        cfg
+          .new_channel::<T>()
+          .map_err(|e| e.context("Invalid encoder settings"))?,
+        (None, None),
+      )
+    } else {
+      let (video_channels, (pass2_s, pass1_r)) = cfg
+        .new_multipass_channel::<T>()
+        .map_err(|e| e.context("Invalid encoder settings"))?;
+
+      (
+        video_channels,
+        (pass2file.map(|p2| (p2, pass2_s)), pass1file.map(|p1| (p1, pass1_r))),
+      )
+    };
 
   let y4m_details = source.input.get_video_details();
 
   crossbeam::scope(|s| {
+    if let Some((mut p1, pass1_r)) = pass1 {
+      s.spawn(move |_| {
+        pass1_r.iter().peekable().peeking_take_while(|_| true).for_each(|d| {
+          let len = (d.len() as u32).to_be_bytes();
+          p1.write_all(&len).unwrap();
+          p1.write_all(&d).unwrap();
+        });
+      });
+    }
+
+    if let Some((mut p2, pass2_s)) = pass2 {
+      s.spawn(move |_| {
+        let mut len = [0u8; 4];
+        let mut buf = [0u8; 64]; // TODO: have an API for this.
+        while p2.read_exact(&mut len).is_ok() {
+          let len = u32::from_be_bytes(len) as usize;
+          p2.read_exact(&mut buf[..len]).unwrap(); // TODO: errors
+          if pass2_s.send(buf[..len].to_vec().into_boxed_slice()).is_err() {
+            break;
+          }
+        }
+      });
+    }
+
     s.spawn(|_| {
       while source.read_frame(&sf, &y4m_details) {
         // eprintln!("Reading frame");

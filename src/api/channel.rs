@@ -25,8 +25,46 @@ use std::sync::Arc;
 
 /// Endpoint to send previous-pass statistics data
 pub struct PassDataSender(Sender<Box<[u8]>>);
+
+impl PassDataSender {
+  pub fn try_send(
+    &self, data: Box<[u8]>,
+  ) -> Result<(), TrySendError<Box<[u8]>>> {
+    self.0.try_send(data)
+  }
+
+  pub fn send(&self, data: Box<[u8]>) -> Result<(), SendError<Box<[u8]>>> {
+    self.0.send(data)
+  }
+  pub fn len(&self) -> usize {
+    self.0.len()
+  }
+  pub fn is_empty(&self) -> bool {
+    self.0.is_empty()
+  }
+  // TODO: proxy more methods
+}
+
 /// Endpoint to receive current-pass statistics data
 pub struct PassDataReceiver(Receiver<Box<[u8]>>);
+
+impl PassDataReceiver {
+  pub fn try_recv(&self) -> Result<Box<[u8]>, TryRecvError> {
+    self.0.try_recv()
+  }
+  pub fn recv(&self) -> Result<Box<[u8]>, RecvError> {
+    self.0.recv()
+  }
+  pub fn len(&self) -> usize {
+    self.0.len()
+  }
+  pub fn is_empty(&self) -> bool {
+    self.0.is_empty()
+  }
+  pub fn iter(&self) -> Iter<Box<[u8]>> {
+    self.0.iter()
+  }
+}
 
 pub type PassData = (PassDataSender, PassDataReceiver);
 
