@@ -678,7 +678,7 @@ pub enum InvalidConfig {
   InvalidSwitchFrameInterval(u64),
 
   /// Multi-pass encoding requested without setting a target bitrate
-  #[error(display = "multipass encoding requires a target bitrate")]
+  #[error("multipass encoding requires a target bitrate")]
   InvalidMultiPassBitrate,
 
   // This variant prevents people from exhaustively matching on this enum,
