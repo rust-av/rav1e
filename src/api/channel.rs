@@ -23,17 +23,32 @@ use crate::util::Pixel;
 use std::io;
 use std::sync::Arc;
 
+#[derive(Debug, Clone)]
+pub enum PassData {
+  Summary(Box<[u8]>),
+  Frame(Box<[u8]>),
+}
+
+impl AsRef<[u8]> for PassData {
+  fn as_ref(&self) -> &[u8] {
+    match self {
+      PassData::Summary(s) => s.as_ref(),
+      PassData::Frame(f) => f.as_ref(),
+    }
+  }
+}
+
 /// Endpoint to send previous-pass statistics data
-pub struct PassDataSender(Sender<Box<[u8]>>);
+pub struct PassDataSender(Sender<PassData>);
 
 impl PassDataSender {
   pub fn try_send(
-    &self, data: Box<[u8]>,
-  ) -> Result<(), TrySendError<Box<[u8]>>> {
+    &self, data: PassData,
+  ) -> Result<(), TrySendError<PassData>> {
     self.0.try_send(data)
   }
 
-  pub fn send(&self, data: Box<[u8]>) -> Result<(), SendError<Box<[u8]>>> {
+  pub fn send(&self, data: PassData) -> Result<(), SendError<PassData>> {
     self.0.send(data)
   }
   pub fn len(&self) -> usize {
@@ -46,13 +61,13 @@ impl PassDataSender {
 }
 
 /// Endpoint to receive current-pass statistics data
-pub struct PassDataReceiver(Receiver<Box<[u8]>>);
+pub struct PassDataReceiver(Receiver<PassData>);
 
 impl PassDataReceiver {
-  pub fn try_recv(&self) -> Result<Box<[u8]>, TryRecvError> {
+  pub fn try_recv(&self) -> Result<PassData, TryRecvError> {
     self.0.try_recv()
   }
-  pub fn recv(&self) -> Result<Box<[u8]>, RecvError> {
+  pub fn recv(&self) -> Result<PassData, RecvError> {
     self.0.recv()
   }
   pub fn len(&self) -> usize {
@@ -61,12 +76,12 @@ impl PassDataReceiver {
   pub fn is_empty(&self) -> bool {
     self.0.is_empty()
   }
-  pub fn iter(&self) -> Iter<Box<[u8]>> {
+  pub fn iter(&self) -> Iter<PassData> {
     self.0.iter()
   }
 }
 
-pub type PassData = (PassDataSender, PassDataReceiver);
+pub type PassDataChannel = (PassDataSender, PassDataReceiver);
 
 pub type FrameInput<T> = (Option<Arc<Frame<T>>>, Option<FrameParameters>);
 
@@ -115,7 +130,7 @@ impl<T: Pixel> PacketReceiver<T> {
   }
 }
 
-pub type VideoData<T> = (FrameSender<T>, PacketReceiver<T>);
+pub type VideoDataChannel<T> = (FrameSender<T>, PacketReceiver<T>);
 
 // TODO: use a separate struct?
 impl Config {
@@ -232,10 +247,10 @@ impl Config {
   /// are sent through the `PassDataSender` endpoint
   ///
   /// Drop the `Sender<F>` endpoint to flush the encoder.
-  /// The last buffer in the Receiver<Box<[u8]>>
+  /// The last buffer in the Receiver<PassData>
   pub fn new_multipass_channel<T: Pixel>(
     &self,
-  ) -> Result<(VideoData<T>, PassData), InvalidConfig> {
+  ) -> Result<(VideoDataChannel<T>, PassDataChannel), InvalidConfig> {
     // TODO: make it user-settable
     let input_len = self.enc.rdo_lookahead_frames as usize * 2;
 
@@ -256,8 +271,8 @@ impl Config {
       .unwrap();
 
     fn receive_packet_impl<T: Pixel>(
-      inner: &mut ContextInner<T>, send_rc_pass1: Option<&Sender<Box<[u8]>>>,
-      receive_rc_pass2: Option<&Receiver<Box<[u8]>>>,
+      inner: &mut ContextInner<T>, send_rc_pass1: Option<&Sender<PassData>>,
+      receive_rc_pass2: Option<&Receiver<PassData>>,
     ) -> Result<Packet<T>, EncoderStatus> {
       if let Some(r) = receive_rc_pass2 {
         // TODO: Consider a graceful failure path
@@ -277,18 +292,28 @@ impl Config {
           inner.rc_state.get_twopass_out_params(inner, inner.output_frameno);
 
         let _ = inner.rc_state.twopass_out(params).map(|data| {
-          s.send(data.to_vec().into_boxed_slice()).unwrap();
+          let pass_data = data.to_vec().into_boxed_slice();
+          s.send(PassData::Frame(pass_data)).unwrap();
         });
       }
 
       inner.receive_packet()
     }
 
+    fn send_pass_summary<T: Pixel>(inner: &mut ContextInner<T>, send_rc_pass1: &Sender<PassData>) -> bool {
+        let params =
+          inner.rc_state.get_twopass_out_params(&inner, inner.output_frameno);
+
+        let data = inner.rc_state.twopass_out(params).unwrap();
+        let pass_data = data.to_vec().into_boxed_slice();
+        send_rc_pass1.send(PassData::Summary(pass_data)).is_ok()
+    }
+
     pool.spawn(move || {
       // Feed in the summary
       let second_pass = receive_rc_pass2
         .recv()
-        .map(|data: Box<[u8]>| {
+        .map(|data: PassData| {
           // check data.len() vs twopass_bytes_needed()
           inner
             .rc_state
@@ -299,21 +324,7 @@ impl Config {
         .unwrap_or(false);
 
       // Send the placeholder data
-      let first_pass = {
-        let params =
-          inner.rc_state.get_twopass_out_params(&inner, inner.output_frameno);
-
-        let data = inner.rc_state.twopass_out(params).unwrap();
-
-        send_rc_pass1.send(data.to_vec().into_boxed_slice()).is_ok()
-      };
-      /*
-            let receive_packet = match (first_pass, second_pass) {
-              (true, true) => move |inner: &mut ContextInner| {
-                receive_packet_impl(inner, Some(
-              }
-            }
-      */
+      let first_pass = send_pass_summary(&mut inner, &send_rc_pass1);
 
       let second_pass_recv =
         if second_pass { Some(receive_rc_pass2) } else { None };
@@ -360,6 +371,9 @@ impl Config {
           _ => unreachable!(),
         }
       }
+
+      // Final summary
+      let _ = first_pass_send.map(|p| send_pass_summary(&mut inner, &p));
 
       // drop(send_packet); // This happens implicitly
     });

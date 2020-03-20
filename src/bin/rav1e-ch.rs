@@ -121,9 +121,12 @@ fn do_encode<T: Pixel, D: Decoder + Send>(
 
   crossbeam::scope(|s| {
     if let Some((mut p1, pass1_r)) = pass1 {
+      use rav1e::prelude::PassData;
       s.spawn(move |_| {
         let mut p = pass1_r.iter().peekable();
-        p.peeking_take_while(|_| true).for_each(|d| {
+        let d = p.next().expect("Pass data missing");
+        if let PassData::
+        p.peeking_take_while(|d| ).for_each(|d| {
           let len = (d.len() as u32).to_be_bytes();
           p1.write_all(&len).unwrap();
           p1.write_all(&d).unwrap();
