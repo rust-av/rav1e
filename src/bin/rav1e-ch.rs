@@ -41,8 +41,6 @@ use std::fs::File;
 use std::io::{Read, Seek, Write};
 use std::sync::Arc;
 
-use itertools::*;
-
 struct Source<D: Decoder + Send> {
   limit: usize,
   count: usize,
@@ -121,22 +119,24 @@ fn do_encode<T: Pixel, D: Decoder + Send>(
 
   crossbeam::scope(|s| {
     if let Some((mut p1, pass1_r)) = pass1 {
-      use rav1e::prelude::PassData;
       s.spawn(move |_| {
-        let mut p = pass1_r.iter().peekable();
-        let d = p.next().expect("Pass data missing");
-        if let PassData::
-        p.peeking_take_while(|d| ).for_each(|d| {
-          let len = (d.len() as u32).to_be_bytes();
-          p1.write_all(&len).unwrap();
-          p1.write_all(&d).unwrap();
-        });
+        let p = pass1_r.iter();
+        // Receive a Summary data as first and last buffer in the channel.
+        p.for_each(|d| {
+          let buf = match d {
+            PassData::Summary(d) => {
+              p1.seek(std::io::SeekFrom::Start(0)).expect("Unable to seek in two-pass data file.");
+              d
+            }
+            PassData::Frame(d) => {
+              d
+            }
+          };
 
-        p1.seek(std::io::SeekFrom::Start(0)).expect("Unable to seek in two-pass data file.");
-        let d = p.next().unwrap();
-        let len = (d.len() as u32).to_be_bytes();
-        p1.write_all(&len).unwrap();
-        p1.write_all(&d).unwrap();
+          let len = (buf.len() as u32).to_be_bytes();
+          p1.write_all(&len).unwrap();
+          p1.write_all(&buf).unwrap();
+        });
       });
     }
 
@@ -144,11 +144,20 @@ fn do_encode<T: Pixel, D: Decoder + Send>(
       s.spawn(move |_| {
         let mut len = [0u8; 4];
         let mut buf = [0u8; 64]; // TODO: have an API for this.
+        let mut summary = true;
         while p2.read_exact(&mut len).is_ok() {
           let len = u32::from_be_bytes(len) as usize;
           p2.read_exact(&mut buf[..len]).unwrap(); // TODO: errors
-          if pass2_s.send(buf[..len].to_vec().into_boxed_slice()).is_err() {
-            break;
+          let data = buf[..len].to_vec().into_boxed_slice();
+          if summary {
+            if pass2_s.send(PassData::Summary(data)).is_err() {
+              break;
+            }
+            summary = false;
+          } else {
+            if pass2_s.send(PassData::Frame(data)).is_err() {
+              break;
+            }
           }
         }
       });

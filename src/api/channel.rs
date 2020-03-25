@@ -29,6 +29,15 @@ pub enum PassData {
   Frame(Box<[u8]>),
 }
 
+impl PassData {
+  pub fn is_summary(&self) -> bool {
+    match self {
+      PassData::Summary(_) => true,
+      _ => false,
+    }
+  }
+}
+
 impl AsRef<[u8]> for PassData {
   fn as_ref(&self) -> &[u8] {
     match self {
@@ -300,13 +309,15 @@ impl Config {
       inner.receive_packet()
     }
 
-    fn send_pass_summary<T: Pixel>(inner: &mut ContextInner<T>, send_rc_pass1: &Sender<PassData>) -> bool {
-        let params =
-          inner.rc_state.get_twopass_out_params(&inner, inner.output_frameno);
+    fn send_pass_summary<T: Pixel>(
+      inner: &mut ContextInner<T>, send_rc_pass1: &Sender<PassData>,
+    ) -> bool {
+      let params =
+        inner.rc_state.get_twopass_out_params(&inner, inner.output_frameno);
 
-        let data = inner.rc_state.twopass_out(params).unwrap();
-        let pass_data = data.to_vec().into_boxed_slice();
-        send_rc_pass1.send(PassData::Summary(pass_data)).is_ok()
+      let data = inner.rc_state.twopass_out(params).unwrap();
+      let pass_data = data.to_vec().into_boxed_slice();
+      send_rc_pass1.send(PassData::Summary(pass_data)).is_ok()
     }
 
     pool.spawn(move || {

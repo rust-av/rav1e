@@ -27,6 +27,7 @@ mod util;
 mod test;
 
 pub use color::*;
+pub use channel::*;
 pub use config::*;
 pub use context::*;
 pub(crate) use internal::*;
