@@ -284,16 +284,19 @@ impl Config {
       receive_rc_pass2: Option<&Receiver<PassData>>,
     ) -> Result<Packet<T>, EncoderStatus> {
       if let Some(r) = receive_rc_pass2 {
-        // TODO: Consider a graceful failure path
-        r.recv()
-          .map(|data| {
-            // check data.len() vs twopass_bytes_needed()
-            inner
-              .rc_state
-              .twopass_in(Some(data.as_ref()))
-              .expect("Faulty pass data");
-          })
-          .unwrap();
+        while inner.rc_state.twopass_in(None).unwrap_or(0) > 0 {
+          r.recv()
+            .map(|data| {
+              // check data.len() vs twopass_bytes_needed()
+              let len = inner.rc_state.twopass_in(None).unwrap_or(0);
+              println!("{} vs {}", data.as_ref().len(), len);
+              inner
+                .rc_state
+                .twopass_in(Some(data.as_ref()))
+                .expect("Faulty pass data");
+            })
+            .unwrap();
+        }
       }
 
       if let Some(s) = send_rc_pass1 {
@@ -326,6 +329,8 @@ impl Config {
         .recv()
         .map(|data: PassData| {
           // check data.len() vs twopass_bytes_needed()
+          let len = inner.rc_state.twopass_in(None).unwrap_or(0);
+          println!("Summary {} vs {}", data.as_ref().len(), len);
           inner
             .rc_state
             .twopass_in(Some(data.as_ref()))
@@ -379,7 +384,7 @@ impl Config {
           }
           Err(EncoderStatus::LimitReached) => break,
           Err(EncoderStatus::Encoded) => {}
-          _ => unreachable!(),
+          Err(e) => panic!("got {:?}", e),
         }
       }
 

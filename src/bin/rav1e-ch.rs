@@ -125,10 +125,12 @@ fn do_encode<T: Pixel, D: Decoder + Send>(
         p.for_each(|d| {
           let buf = match d {
             PassData::Summary(d) => {
+              println!("Summary len {}", d.len());
               p1.seek(std::io::SeekFrom::Start(0)).expect("Unable to seek in two-pass data file.");
               d
             }
             PassData::Frame(d) => {
+              println!("Frame len {}", d.len());
               d
             }
           };
@@ -143,10 +145,11 @@ fn do_encode<T: Pixel, D: Decoder + Send>(
     if let Some((mut p2, pass2_s)) = pass2 {
       s.spawn(move |_| {
         let mut len = [0u8; 4];
-        let mut buf = [0u8; 64]; // TODO: have an API for this.
+        let mut buf = [0u8; 64 + 4]; // TODO: have an API for this.
         let mut summary = true;
         while p2.read_exact(&mut len).is_ok() {
           let len = u32::from_be_bytes(len) as usize;
+          println!("Reading len {}", len);
           p2.read_exact(&mut buf[..len]).unwrap(); // TODO: errors
           let data = buf[..len].to_vec().into_boxed_slice();
           if summary {
