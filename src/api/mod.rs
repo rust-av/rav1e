@@ -20,6 +20,8 @@ pub mod context;
 pub(crate) mod internal;
 /// Lookahead-specific methods
 pub(crate) mod lookahead;
+/// Rate control
+pub mod rate;
 
 mod util;
 
