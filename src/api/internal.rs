@@ -1093,6 +1093,7 @@ impl<T: Pixel> ContextInner<T> {
       self.output_frameno += 1;
 
       let input_frameno = frame_data.fi.input_frameno;
+      eprintln!("  Showing {}", input_frameno);
       let frame_type = frame_data.fi.frame_type;
       let qp = frame_data.fi.base_q_idx;
       let enc_stats = frame_data.fs.enc_stats.clone();
@@ -1220,6 +1221,7 @@ impl<T: Pixel> ContextInner<T> {
         let input_frameno = fi.input_frameno;
         let frame_type = fi.frame_type;
         let qp = fi.base_q_idx;
+        eprintln!("  Encoding {} and showing it", fi.input_frameno);
         self.finalize_packet(
           rec,
           source,
@@ -1229,6 +1231,7 @@ impl<T: Pixel> ContextInner<T> {
           enc_stats,
         )
       } else {
+        eprintln!("  Encoding {}, but not showing", fi.input_frameno);
         Err(EncoderStatus::Encoded)
       }
     } else {
