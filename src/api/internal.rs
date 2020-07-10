@@ -312,7 +312,7 @@ impl<T: Pixel> ContextInner<T> {
       self.frame_count += 1;
     }
     self.frame_q.insert(input_frameno, frame);
-    eprintln!("Frame {} in", input_frameno);
+    // eprintln!("Frame {} in", input_frameno);
 
     if let Some(params) = params {
       if params.frame_type_override == FrameTypeOverride::Key {
@@ -1216,12 +1216,20 @@ impl<T: Pixel> ContextInner<T> {
       let fi = &frame_data.fi;
 
       self.output_frameno += 1;
+      use num_traits::FromPrimitive;
 
       if fi.show_frame {
         let input_frameno = fi.input_frameno;
         let frame_type = fi.frame_type;
         let qp = fi.base_q_idx;
-        eprintln!("  Encoding {} and showing it", fi.input_frameno);
+        eprintln!(
+          "  Encoding {} refs {:?} and showing it",
+          fi.input_frameno,
+          fi.ref_frames
+            .iter()
+            .map(|&v| RefType::from_u8(v).unwrap())
+            .collect::<Vec<_>>()
+        );
         self.finalize_packet(
           rec,
           source,
@@ -1231,7 +1239,14 @@ impl<T: Pixel> ContextInner<T> {
           enc_stats,
         )
       } else {
-        eprintln!("  Encoding {}, but not showing", fi.input_frameno);
+        eprintln!(
+          "  Encoding {} refs {:?}, but not showing",
+          fi.input_frameno,
+          fi.ref_frames
+            .iter()
+            .map(|&v| RefType::from_u8(v).unwrap())
+            .collect::<Vec<_>>()
+        );
         Err(EncoderStatus::Encoded)
       }
     } else {
@@ -1292,7 +1307,7 @@ impl<T: Pixel> ContextInner<T> {
     }
 
     self.frames_processed += 1;
-    eprintln!("Frame {} out", input_frameno);
+    eprintln!("Frame {} out - {:?}", input_frameno, frame_type);
     Ok(Packet {
       data,
       rec,
