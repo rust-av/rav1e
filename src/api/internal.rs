@@ -312,6 +312,7 @@ impl<T: Pixel> ContextInner<T> {
       self.frame_count += 1;
     }
     self.frame_q.insert(input_frameno, frame);
+    eprintln!("Frame {} in", input_frameno);
 
     if let Some(params) = params {
       if params.frame_type_override == FrameTypeOverride::Key {
@@ -1288,6 +1289,7 @@ impl<T: Pixel> ContextInner<T> {
     }
 
     self.frames_processed += 1;
+    eprintln!("Frame {} out", input_frameno);
     Ok(Packet {
       data,
       rec,
