@@ -347,6 +347,11 @@ impl<T: Pixel> ContextInner<T> {
       }
     }
 
+    println!(
+      "-> Frame queue {} next {}",
+      self.frame_q.len(),
+      self.next_lookahead_frame
+    );
     if !self.needs_more_frame_q_lookahead(self.next_lookahead_frame) {
       let lookahead_frames = self
         .frame_q
@@ -788,6 +793,11 @@ impl<T: Pixel> ContextInner<T> {
 
   #[hawktracer(compute_frame_invariants)]
   pub fn compute_frame_invariants(&mut self) {
+    println!(
+      "-> frame invariants queue {} lookahead_output_frameno {}",
+      self.frame_data.len(),
+      self.next_lookahead_output_frameno
+    );
     while self.set_frame_properties(self.next_lookahead_output_frameno).is_ok()
     {
       self
@@ -796,6 +806,7 @@ impl<T: Pixel> ContextInner<T> {
         self.compute_lookahead_intra_costs(self.next_lookahead_output_frameno);
       }
       self.next_lookahead_output_frameno += 1;
+      println!("-> processing {}", self.next_lookahead_output_frameno);
     }
   }
 
@@ -816,6 +827,11 @@ impl<T: Pixel> ContextInner<T> {
     // The first one should be the current output frame.
     assert_eq!(output_framenos[0], self.output_frameno);
 
+    println!(
+      "<- Computing block importances on {:?}..{:?}",
+      output_framenos.first(),
+      output_framenos.last(),
+    );
     // First, initialize them all with zeros.
     for output_frameno in output_framenos.iter() {
       let fi = &mut self.frame_data.get_mut(output_frameno).unwrap().fi;
@@ -1292,6 +1308,14 @@ impl<T: Pixel> ContextInner<T> {
     if self.needs_more_fi_lookahead() {
       return Err(EncoderStatus::NeedMoreData);
     }
+
+    println!(
+      "<- frame invariants queue {} {:?}..{:?} output frameno {}",
+      self.frame_data.len(),
+      self.frame_data.keys().next(),
+      self.frame_data.keys().last(),
+      self.output_frameno
+    );
 
     // Find the next output_frameno corresponding to a non-skipped frame.
     self.output_frameno = self
