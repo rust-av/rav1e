@@ -487,6 +487,9 @@ impl CDFContext {
       ("coeff_br_cdf", coeff_br_cdf_start, coeff_br_cdf_end),
     ]
   }
+  pub fn get_off(&self) -> usize {
+    self as *const _ as *const u8 as usize
+  }
 }
 
 impl fmt::Debug for CDFContext {
@@ -498,7 +501,7 @@ impl fmt::Debug for CDFContext {
 #[macro_use]
 macro_rules! symbol_with_update {
   ($self:ident, $w:ident, $s:expr, $cdf:expr) => {
-    $w.symbol_with_update($s, $cdf);
+    $w.symbol_with_update($s, $cdf, &mut $self.fc_log);
     #[cfg(feature = "desync_finder")]
     {
       let cdf: &[_] = $cdf;
@@ -511,13 +514,36 @@ macro_rules! symbol_with_update {
 
 #[derive(Clone)]
 pub struct ContextWriterCheckpoint {
-  pub fc: CDFContext,
+  pub fc_index: usize,
   pub bc: BlockContextCheckpoint,
+}
+
+pub struct CDFContextLog {
+  pub(crate) off: usize,
+  pub(crate) data: Vec<u16>,
+}
+
+impl CDFContextLog {
+  fn new(off: usize) -> Self {
+    Self { off, data: Vec::with_capacity(256 * 1024) }
+  }
+  fn len(&self) -> usize {
+    self.data.len()
+  }
+  pub fn add(&mut self, cdf: &[u16]) {
+    let off = ((cdf.as_ptr() as *const u8 as usize) - self.off) as u16;
+    self.data.extend_from_slice(cdf);
+    self.data.extend_from_slice(&[off, cdf.len() as u16]);
+  }
+  pub fn clear(&mut self) {
+    self.data.clear();
+  }
 }
 
 pub struct ContextWriter<'a> {
   pub bc: BlockContext<'a>,
   pub fc: &'a mut CDFContext,
+  pub fc_log: CDFContextLog,
   #[cfg(feature = "desync_finder")]
   pub fc_map: Option<FieldMap>, // For debugging purposes
 }
@@ -525,10 +551,12 @@ pub struct ContextWriter<'a> {
 impl<'a> ContextWriter<'a> {
   #[allow(clippy::let_and_return)]
   pub fn new(fc: &'a mut CDFContext, bc: BlockContext<'a>) -> Self {
+    let fc_log = CDFContextLog::new(fc.get_off());
     #[allow(unused_mut)]
     let mut cw = ContextWriter {
       fc,
       bc,
+      fc_log,
       #[cfg(feature = "desync_finder")]
       fc_map: Default::default(),
     };
@@ -546,12 +574,27 @@ impl<'a> ContextWriter<'a> {
     (if element > 0 { cdf[element - 1] } else { 32768 }) - cdf[element]
   }
 
-  pub const fn checkpoint(&self) -> ContextWriterCheckpoint {
-    ContextWriterCheckpoint { fc: *self.fc, bc: self.bc.checkpoint() }
+  pub fn checkpoint(&self) -> ContextWriterCheckpoint {
+    ContextWriterCheckpoint {
+      fc_index: self.fc_log.len(),
+      bc: self.bc.checkpoint(),
+    }
   }
 
   pub fn rollback(&mut self, checkpoint: &ContextWriterCheckpoint) {
-    *self.fc = checkpoint.fc;
+    let start = self.fc_log.off as *mut u8;
+    while self.fc_log.len() > checkpoint.fc_index {
+      if let Some(len) = self.fc_log.data.pop() {
+        if let Some(off) = self.fc_log.data.pop() {
+          let src = &self.fc_log.data[self.fc_log.data.len() - len as usize];
+          unsafe {
+            let dst = start.offset(off as isize) as *mut u16;
+            dst.copy_from_nonoverlapping(src, len as usize);
+          }
+          self.fc_log.data.truncate(self.fc_log.data.len() - len as usize);
+        }
+      }
+    }
     self.bc.rollback(&checkpoint.bc);
     #[cfg(feature = "desync_finder")]
     {
