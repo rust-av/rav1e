@@ -70,6 +70,8 @@ pub struct CDFContext {
     [[[[u16; 4 + 1]; SIG_COEF_CONTEXTS]; PLANE_TYPES]; TxSize::TX_SIZES],
   pub coeff_br_cdf: [[[[u16; BR_CDF_SIZE + 1]; LEVEL_CONTEXTS]; PLANE_TYPES];
     TxSize::TX_SIZES],
+
+  padding: [u16; 18],
 }
 
 impl CDFContext {
@@ -131,6 +133,8 @@ impl CDFContext {
       coeff_base_eob_cdf: av1_default_coeff_base_eob_multi_cdfs[qctx],
       coeff_base_cdf: av1_default_coeff_base_multi_cdfs[qctx],
       coeff_br_cdf: av1_default_coeff_lps_multi_cdfs[qctx],
+
+      padding: [0; 18],
     }
   }
 
@@ -520,20 +524,26 @@ pub struct ContextWriterCheckpoint {
 
 pub struct CDFContextLog {
   pub(crate) off: usize,
-  pub(crate) data: Vec<u16>,
+  pub(crate) data: Vec<[u16; 18]>,
 }
 
 impl CDFContextLog {
   fn new(off: usize) -> Self {
-    Self { off, data: Vec::with_capacity(256 * 1024) }
+    Self { off, data: Vec::with_capacity(1 << 15) }
   }
   fn len(&self) -> usize {
     self.data.len()
   }
+  #[inline(always)]
   pub fn add(&mut self, cdf: &[u16]) {
     let off = ((cdf.as_ptr() as *const u8 as usize) - self.off) as u16;
-    self.data.extend_from_slice(cdf);
-    self.data.extend_from_slice(&[off, cdf.len() as u16]);
+    unsafe {
+      let cdf_extra = &*(cdf as *const [u16] as *const [u16; 18]);
+      let pos = self.data.len();
+      self.data.push(*cdf_extra);
+      let entry = self.data.get_unchecked_mut(pos);
+      entry[17] = off;
+    }
   }
   pub fn clear(&mut self) {
     self.data.clear();
@@ -583,17 +593,16 @@ impl<'a> ContextWriter<'a> {
 
   pub fn rollback(&mut self, checkpoint: &ContextWriterCheckpoint) {
     let start = self.fc_log.off as *mut u8;
-    while self.fc_log.len() > checkpoint.fc_index {
-      if let Some(len) = self.fc_log.data.pop() {
-        if let Some(off) = self.fc_log.data.pop() {
-          let src = &self.fc_log.data[self.fc_log.data.len() - len as usize];
-          unsafe {
-            let dst = start.offset(off as isize) as *mut u16;
-            dst.copy_from_nonoverlapping(src, len as usize);
-          }
-          self.fc_log.data.truncate(self.fc_log.data.len() - len as usize);
-        }
+    let mut pos = self.fc_log.len();
+    unsafe {
+      while pos > checkpoint.fc_index {
+        pos -= 1;
+        let src = self.fc_log.data.get_unchecked_mut(pos);
+        let off = src[17] as usize;
+        let dst = start.add(off) as *mut u16;
+        dst.copy_from_nonoverlapping(src.as_ptr(), 17);
       }
+      self.fc_log.data.set_len(pos);
     }
     self.bc.rollback(&checkpoint.bc);
     #[cfg(feature = "desync_finder")]
