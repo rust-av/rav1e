@@ -79,16 +79,15 @@ pub struct FieldMap {
 
 impl FieldMap {
   /// Print the field the address belong to
-  fn lookup(&self, addr: usize) {
+  fn lookup(&self, addr: usize) -> Option<&str> {
     for (name, start, end) in &self.map {
       if addr >= *start && addr < *end {
-        println!(" CDF {}", name);
-        println!();
-        return;
+        return Some(name);
       }
     }
 
     println!("  CDF address not found {}", addr);
+    None
   }
 }
 

@@ -617,9 +617,12 @@ trait CDFContextLogOps: CDFContextLogSize {
   #[inline(always)]
   fn rollback(
     log: &mut CDFContextLogBase, fc: &mut CDFContext, checkpoint: usize,
+    map: &FieldMap,
   ) {
     let base = fc as *mut _ as *mut u8;
     let mut len = log.data.len();
+    let mut summary = std::collections::HashMap::new();
+    let mut rollback_count = 0;
     unsafe {
       let mut src = log.data.get_unchecked_mut(len) as *mut u16;
       while len > checkpoint {
@@ -627,10 +630,18 @@ trait CDFContextLogOps: CDFContextLogSize {
         src = src.sub(Self::CDF_LEN_MAX + 1);
         let offset = *src.add(Self::CDF_LEN_MAX) as usize;
         let dst = base.add(offset) as *mut u16;
+        if let Some(name) = map.lookup(dst as usize) {
+          summary.entry(name).and_modify(|v| *v += 1).or_insert(1);
+        }
         dst.copy_from_nonoverlapping(src, Self::CDF_LEN_MAX);
+        rollback_count += 1;
       }
       log.data.set_len(len);
     }
+    print!(" {}", rollback_count);
+    /* for (name, count) in summary.iter() {
+      println!("    {}: {}", name, count);
+    } */
   }
 }
 
@@ -685,9 +696,13 @@ impl CDFContextLog {
   #[inline(always)]
   pub fn rollback(
     &mut self, fc: &mut CDFContext, checkpoint: &CDFContextCheckpoint,
+    map: &FieldMap,
   ) {
-    CDFContextLogSmall::rollback(&mut self.small.0, fc, checkpoint.small);
-    CDFContextLogLarge::rollback(&mut self.large.0, fc, checkpoint.large);
+    print!("{:p}, ", checkpoint);
+    CDFContextLogSmall::rollback(&mut self.small.0, fc, checkpoint.small, map);
+    print!(", ");
+    CDFContextLogLarge::rollback(&mut self.large.0, fc, checkpoint.large, map);
+    println!("");
   }
   pub fn clear(&mut self) {
     self.small.0.data.clear();
@@ -699,7 +714,6 @@ pub struct ContextWriter<'a> {
   pub bc: BlockContext<'a>,
   pub fc: &'a mut CDFContext,
   pub fc_log: CDFContextLog,
-  #[cfg(feature = "desync_finder")]
   pub fc_map: Option<FieldMap>, // For debugging purposes
 }
 
@@ -708,18 +722,9 @@ impl<'a> ContextWriter<'a> {
   pub fn new(fc: &'a mut CDFContext, bc: BlockContext<'a>) -> Self {
     let fc_log = CDFContextLog::new(fc);
     #[allow(unused_mut)]
-    let mut cw = ContextWriter {
-      fc,
-      bc,
-      fc_log,
-      #[cfg(feature = "desync_finder")]
-      fc_map: Default::default(),
-    };
-    #[cfg(feature = "desync_finder")]
+    let mut cw = ContextWriter { fc, bc, fc_log, fc_map: Default::default() };
     {
-      if std::env::var_os("RAV1E_DEBUG").is_some() {
-        cw.fc_map = Some(FieldMap { map: cw.fc.build_map() });
-      }
+      cw.fc_map = Some(FieldMap { map: cw.fc.build_map() });
     }
 
     cw
@@ -740,13 +745,11 @@ impl<'a> ContextWriter<'a> {
   }
 
   pub fn rollback(&mut self, checkpoint: &ContextWriterCheckpoint) {
-    self.fc_log.rollback(&mut self.fc, &checkpoint.fc);
+    self.fc_log.rollback(
+      &mut self.fc,
+      &checkpoint.fc,
+      self.fc_map.as_ref().unwrap(),
+    );
     self.bc.rollback(&checkpoint.bc);
-    #[cfg(feature = "desync_finder")]
-    {
-      if self.fc_map.is_some() {
-        self.fc_map = Some(FieldMap { map: self.fc.build_map() });
-      }
-    }
   }
 }
