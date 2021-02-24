@@ -201,8 +201,14 @@ pub const TXB_SKIP_CONTEXTS: usize = 13;
 pub const EOB_COEF_CONTEXTS: usize = 9;
 
 const SIG_COEF_CONTEXTS_2D: usize = 26;
-const SIG_COEF_CONTEXTS_1D: usize = 16;
+const SIG_COEF_CONTEXTS_1D: usize = 15;
 pub const SIG_COEF_CONTEXTS_EOB: usize = 4;
+// The spec says that this should be 42, but the last context is never used, so
+//  we do not bother to store it.
+// The maximum value is found in get_nz_map_ctx_from_stats() with
+//  tx_class == TX_CLASS_HORIZ|TX_CLASS_VERT, col|row >= 2, and stats >= 7,
+//  where the result is
+//  SIG_COEF_CONTEXTS_2D + 10 + ((stats + 1) >> 1).min(4) == 40, not 41.
 pub const SIG_COEF_CONTEXTS: usize =
   SIG_COEF_CONTEXTS_2D + SIG_COEF_CONTEXTS_1D;
 

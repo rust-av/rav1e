@@ -2142,7 +2142,6 @@ pub static av1_default_coeff_base_multi_cdfs: [[[[[u16; NUM_BASE_LEVELS + 2];
         cdf!(6673, 13745, 18662),
         cdf!(2068, 5766, 9322),
         cdf!(8192, 16384, 24576),
-        cdf!(8192, 16384, 24576),
       ],
       [
         cdf!(6302, 16444, 21761),
@@ -2185,7 +2184,6 @@ pub static av1_default_coeff_base_multi_cdfs: [[[[[u16; NUM_BASE_LEVELS + 2];
         cdf!(18795, 29289, 31411),
         cdf!(7644, 17584, 23592),
         cdf!(3408, 9014, 15047),
-        cdf!(8192, 16384, 24576),
         cdf!(8192, 16384, 24576),
       ],
     ],
@@ -2232,7 +2230,6 @@ pub static av1_default_coeff_base_multi_cdfs: [[[[[u16; NUM_BASE_LEVELS + 2];
         cdf!(12024, 24985, 29378),
         cdf!(7517, 18390, 24304),
         cdf!(3243, 8781, 13331),
-        cdf!(8192, 16384, 24576),
       ],
       [
         cdf!(6037, 16771, 21957),
@@ -2276,7 +2273,6 @@ pub static av1_default_coeff_base_multi_cdfs: [[[[[u16; NUM_BASE_LEVELS + 2];
         cdf!(12162, 25047, 29842),
         cdf!(7896, 18691, 25319),
         cdf!(4670, 12882, 18881),
-        cdf!(8192, 16384, 24576),
       ],
     ],
     [
@@ -2322,7 +2318,6 @@ pub static av1_default_coeff_base_multi_cdfs: [[[[[u16; NUM_BASE_LEVELS + 2];
         cdf!(13692, 27550, 31321),
         cdf!(9418, 22514, 28439),
         cdf!(4999, 13283, 19462),
-        cdf!(8192, 16384, 24576),
       ],
       [
         cdf!(5673, 14302, 19711),
@@ -2366,7 +2361,6 @@ pub static av1_default_coeff_base_multi_cdfs: [[[[[u16; NUM_BASE_LEVELS + 2];
         cdf!(10205, 23703, 29664),
         cdf!(7889, 20025, 27676),
         cdf!(6060, 16743, 23970),
-        cdf!(8192, 16384, 24576),
       ],
     ],
     [
@@ -2412,7 +2406,6 @@ pub static av1_default_coeff_base_multi_cdfs: [[[[[u16; NUM_BASE_LEVELS + 2];
         cdf!(8192, 16384, 24576),
         cdf!(8192, 16384, 24576),
         cdf!(8192, 16384, 24576),
-        cdf!(8192, 16384, 24576),
       ],
       [
         cdf!(2461, 7013, 9371),
@@ -2441,7 +2434,6 @@ pub static av1_default_coeff_base_multi_cdfs: [[[[[u16; NUM_BASE_LEVELS + 2];
         cdf!(13694, 26656, 30636),
         cdf!(8142, 19508, 26093),
         cdf!(4253, 10955, 16724),
-        cdf!(8192, 16384, 24576),
         cdf!(8192, 16384, 24576),
         cdf!(8192, 16384, 24576),
         cdf!(8192, 16384, 24576),
@@ -2502,10 +2494,8 @@ pub static av1_default_coeff_base_multi_cdfs: [[[[[u16; NUM_BASE_LEVELS + 2];
         cdf!(8192, 16384, 24576),
         cdf!(8192, 16384, 24576),
         cdf!(8192, 16384, 24576),
-        cdf!(8192, 16384, 24576),
       ],
       [
-        cdf!(8192, 16384, 24576),
         cdf!(8192, 16384, 24576),
         cdf!(8192, 16384, 24576),
         cdf!(8192, 16384, 24576),
@@ -2594,7 +2584,6 @@ pub static av1_default_coeff_base_multi_cdfs: [[[[[u16; NUM_BASE_LEVELS + 2];
         cdf!(8324, 15344, 20249),
         cdf!(1903, 5696, 9469),
         cdf!(8192, 16384, 24576),
-        cdf!(8192, 16384, 24576),
       ],
       [
         cdf!(8455, 19003, 24368),
@@ -2637,7 +2626,6 @@ pub static av1_default_coeff_base_multi_cdfs: [[[[[u16; NUM_BASE_LEVELS + 2];
         cdf!(18458, 29783, 31909),
         cdf!(8400, 19464, 25956),
         cdf!(3812, 10973, 17206),
-        cdf!(8192, 16384, 24576),
         cdf!(8192, 16384, 24576),
       ],
     ],
@@ -2684,7 +2672,6 @@ pub static av1_default_coeff_base_multi_cdfs: [[[[[u16; NUM_BASE_LEVELS + 2];
         cdf!(12413, 24955, 29243),
         cdf!(6676, 16927, 23097),
         cdf!(2966, 8333, 12919),
-        cdf!(8192, 16384, 24576),
       ],
       [
         cdf!(8639, 19339, 24429),
@@ -2728,7 +2715,6 @@ pub static av1_default_coeff_base_multi_cdfs: [[[[[u16; NUM_BASE_LEVELS + 2];
         cdf!(13071, 26434, 30811),
         cdf!(8184, 20090, 26742),
         cdf!(4803, 13255, 19895),
-        cdf!(8192, 16384, 24576),
       ],
     ],
     [
@@ -2774,7 +2760,6 @@ pub static av1_default_coeff_base_multi_cdfs: [[[[[u16; NUM_BASE_LEVELS + 2];
         cdf!(14864, 28722, 31700),
         cdf!(9695, 22964, 28716),
         cdf!(4932, 13358, 19502),
-        cdf!(8192, 16384, 24576),
       ],
       [
         cdf!(6465, 16958, 21688),
@@ -2818,7 +2803,6 @@ pub static av1_default_coeff_base_multi_cdfs: [[[[[u16; NUM_BASE_LEVELS + 2];
         cdf!(12236, 26841, 31403),
         cdf!(8171, 21840, 29082),
         cdf!(7224, 17280, 25275),
-        cdf!(8192, 16384, 24576),
       ],
     ],
     [
@@ -2864,7 +2848,6 @@ pub static av1_default_coeff_base_multi_cdfs: [[[[[u16; NUM_BASE_LEVELS + 2];
         cdf!(8192, 16384, 24576),
         cdf!(8192, 16384, 24576),
         cdf!(8192, 16384, 24576),
-        cdf!(8192, 16384, 24576),
       ],
       [
         cdf!(5244, 12150, 16906),
@@ -2893,7 +2876,6 @@ pub static av1_default_coeff_base_multi_cdfs: [[[[[u16; NUM_BASE_LEVELS + 2];
         cdf!(15520, 28060, 31286),
         cdf!(11517, 23008, 28571),
         cdf!(6193, 14508, 20629),
-        cdf!(8192, 16384, 24576),
         cdf!(8192, 16384, 24576),
         cdf!(8192, 16384, 24576),
         cdf!(8192, 16384, 24576),
@@ -2954,10 +2936,8 @@ pub static av1_default_coeff_base_multi_cdfs: [[[[[u16; NUM_BASE_LEVELS + 2];
         cdf!(8192, 16384, 24576),
         cdf!(8192, 16384, 24576),
         cdf!(8192, 16384, 24576),
-        cdf!(8192, 16384, 24576),
       ],
       [
-        cdf!(8192, 16384, 24576),
         cdf!(8192, 16384, 24576),
         cdf!(8192, 16384, 24576),
         cdf!(8192, 16384, 24576),
@@ -3046,7 +3026,6 @@ pub static av1_default_coeff_base_multi_cdfs: [[[[[u16; NUM_BASE_LEVELS + 2];
         cdf!(9204, 17356, 23219),
         cdf!(2403, 7516, 12814),
         cdf!(8192, 16384, 24576),
-        cdf!(8192, 16384, 24576),
       ],
       [
         cdf!(10808, 22056, 26896),
@@ -3089,7 +3068,6 @@ pub static av1_default_coeff_base_multi_cdfs: [[[[[u16; NUM_BASE_LEVELS + 2];
         cdf!(20032, 31167, 32438),
         cdf!(8700, 21341, 28442),
         cdf!(5662, 14831, 21795),
-        cdf!(8192, 16384, 24576),
         cdf!(8192, 16384, 24576),
       ],
     ],
@@ -3136,7 +3114,6 @@ pub static av1_default_coeff_base_multi_cdfs: [[[[[u16; NUM_BASE_LEVELS + 2];
         cdf!(11233, 23671, 28806),
         cdf!(6012, 16128, 22868),
         cdf!(3427, 9851, 15414),
-        cdf!(8192, 16384, 24576),
       ],
       [
         cdf!(11016, 22111, 26794),
@@ -3180,7 +3157,6 @@ pub static av1_default_coeff_base_multi_cdfs: [[[[[u16; NUM_BASE_LEVELS + 2];
         cdf!(13557, 26571, 30846),
         cdf!(7749, 19861, 26675),
         cdf!(4873, 14030, 21234),
-        cdf!(8192, 16384, 24576),
       ],
     ],
     [
@@ -3226,7 +3202,6 @@ pub static av1_default_coeff_base_multi_cdfs: [[[[[u16; NUM_BASE_LEVELS + 2];
         cdf!(14747, 28115, 31403),
         cdf!(8545, 21242, 27478),
         cdf!(4574, 12781, 19067),
-        cdf!(8192, 16384, 24576),
       ],
       [
         cdf!(9185, 19694, 24688),
@@ -3270,7 +3245,6 @@ pub static av1_default_coeff_base_multi_cdfs: [[[[[u16; NUM_BASE_LEVELS + 2];
         cdf!(11903, 26023, 30621),
         cdf!(7026, 20094, 27252),
         cdf!(5998, 18106, 24437),
-        cdf!(8192, 16384, 24576),
       ],
     ],
     [
@@ -3316,7 +3290,6 @@ pub static av1_default_coeff_base_multi_cdfs: [[[[[u16; NUM_BASE_LEVELS + 2];
         cdf!(8192, 16384, 24576),
         cdf!(8192, 16384, 24576),
         cdf!(8192, 16384, 24576),
-        cdf!(8192, 16384, 24576),
       ],
       [
         cdf!(10202, 20633, 25484),
@@ -3345,7 +3318,6 @@ pub static av1_default_coeff_base_multi_cdfs: [[[[[u16; NUM_BASE_LEVELS + 2];
         cdf!(17160, 28779, 31696),
         cdf!(12452, 24137, 29602),
         cdf!(6165, 15389, 22477),
-        cdf!(8192, 16384, 24576),
         cdf!(8192, 16384, 24576),
         cdf!(8192, 16384, 24576),
         cdf!(8192, 16384, 24576),
@@ -3406,10 +3378,8 @@ pub static av1_default_coeff_base_multi_cdfs: [[[[[u16; NUM_BASE_LEVELS + 2];
         cdf!(8192, 16384, 24576),
         cdf!(8192, 16384, 24576),
         cdf!(8192, 16384, 24576),
-        cdf!(8192, 16384, 24576),
       ],
       [
-        cdf!(8192, 16384, 24576),
         cdf!(8192, 16384, 24576),
         cdf!(8192, 16384, 24576),
         cdf!(8192, 16384, 24576),
@@ -3498,7 +3468,6 @@ pub static av1_default_coeff_base_multi_cdfs: [[[[[u16; NUM_BASE_LEVELS + 2];
         cdf!(10771, 20255, 27119),
         cdf!(2795, 10410, 17361),
         cdf!(8192, 16384, 24576),
-        cdf!(8192, 16384, 24576),
       ],
       [
         cdf!(9320, 22102, 27840),
@@ -3541,7 +3510,6 @@ pub static av1_default_coeff_base_multi_cdfs: [[[[[u16; NUM_BASE_LEVELS + 2];
         cdf!(22576, 32079, 32661),
         cdf!(10627, 22141, 28340),
         cdf!(9362, 14043, 28087),
-        cdf!(8192, 16384, 24576),
         cdf!(8192, 16384, 24576),
       ],
     ],
@@ -3588,7 +3556,6 @@ pub static av1_default_coeff_base_multi_cdfs: [[[[[u16; NUM_BASE_LEVELS + 2];
         cdf!(10457, 23619, 29409),
         cdf!(6443, 17637, 24834),
         cdf!(4645, 13236, 20106),
-        cdf!(8192, 16384, 24576),
       ],
       [
         cdf!(8626, 20271, 26216),
@@ -3632,7 +3599,6 @@ pub static av1_default_coeff_base_multi_cdfs: [[[[[u16; NUM_BASE_LEVELS + 2];
         cdf!(13250, 27356, 31674),
         cdf!(7718, 21508, 29858),
         cdf!(7209, 18350, 25559),
-        cdf!(8192, 16384, 24576),
       ],
     ],
     [
@@ -3678,7 +3644,6 @@ pub static av1_default_coeff_base_multi_cdfs: [[[[[u16; NUM_BASE_LEVELS + 2];
         cdf!(12744, 26625, 30885),
         cdf!(7431, 20322, 26950),
         cdf!(4692, 13323, 20111),
-        cdf!(8192, 16384, 24576),
       ],
       [
         cdf!(7833, 18369, 24095),
@@ -3722,7 +3687,6 @@ pub static av1_default_coeff_base_multi_cdfs: [[[[[u16; NUM_BASE_LEVELS + 2];
         cdf!(6780, 21469, 30508),
         cdf!(5958, 14895, 23831),
         cdf!(16384, 21845, 27307),
-        cdf!(8192, 16384, 24576),
       ],
     ],
     [
@@ -3768,7 +3732,6 @@ pub static av1_default_coeff_base_multi_cdfs: [[[[[u16; NUM_BASE_LEVELS + 2];
         cdf!(8192, 16384, 24576),
         cdf!(8192, 16384, 24576),
         cdf!(8192, 16384, 24576),
-        cdf!(8192, 16384, 24576),
       ],
       [
         cdf!(11206, 21090, 26561),
@@ -3797,7 +3760,6 @@ pub static av1_default_coeff_base_multi_cdfs: [[[[[u16; NUM_BASE_LEVELS + 2];
         cdf!(15958, 29217, 32024),
         cdf!(10207, 24234, 29958),
         cdf!(6929, 18305, 25652),
-        cdf!(8192, 16384, 24576),
         cdf!(8192, 16384, 24576),
         cdf!(8192, 16384, 24576),
         cdf!(8192, 16384, 24576),
@@ -3858,10 +3820,8 @@ pub static av1_default_coeff_base_multi_cdfs: [[[[[u16; NUM_BASE_LEVELS + 2];
         cdf!(8192, 16384, 24576),
         cdf!(8192, 16384, 24576),
         cdf!(8192, 16384, 24576),
-        cdf!(8192, 16384, 24576),
       ],
       [
-        cdf!(8192, 16384, 24576),
         cdf!(8192, 16384, 24576),
         cdf!(8192, 16384, 24576),
         cdf!(8192, 16384, 24576),
