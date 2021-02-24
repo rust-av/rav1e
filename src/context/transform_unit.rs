@@ -200,8 +200,13 @@ pub const TXB_SKIP_CONTEXTS: usize = 13;
 
 pub const EOB_COEF_CONTEXTS: usize = 9;
 
-const SIG_COEF_CONTEXTS_2D: usize = 26;
-const SIG_COEF_CONTEXTS_1D: usize = 15;
+// The number of contexts determined by the magnitude of neighboring reference
+//  coefficients.
+// That value is clamped to the range 0..=4, giving 5 contexts of each type
+//  depending on the magnitudes.
+const SIG_COEF_REF_MAG_CONTEXTS: usize = 5;
+const SIG_COEF_CONTEXTS_2D: usize = 1 + 5*SIG_COEF_REF_MAG_CONTEXTS;
+const SIG_COEF_CONTEXTS_1D: usize = 3*SIG_COEF_REF_MAG_CONTEXTS;
 pub const SIG_COEF_CONTEXTS_EOB: usize = 4;
 // The spec says that this should be 42, but the last context is never used, so
 //  we do not bother to store it.
@@ -212,7 +217,40 @@ pub const SIG_COEF_CONTEXTS_EOB: usize = 4;
 pub const SIG_COEF_CONTEXTS: usize =
   SIG_COEF_CONTEXTS_2D + SIG_COEF_CONTEXTS_1D;
 
-const COEFF_BASE_CONTEXTS: usize = SIG_COEF_CONTEXTS;
+// Although the spec describes a 3-dimensional array indexed by txs_ctx, plane,
+//  and a ctx drawn from SIG_COEF_CONTEXTS, in practice a number of entries in
+//  this array are unused.
+//
+// txs_ctx == TX_4X4 is only used for 4x4 blocks.
+// Thus ctx values 11...15, which are only used for Nx2N or Nx4N blocks, and
+//  ctx values 16...20, which are only used for 2NxN or 4NxN blocks, all go
+//  unused.
+// Additionally, for TX_CLASS_HORIZ and TX_CLASS_VERT transform types, in the
+//  last two positions there are at most two reference coefficients that still
+//  lie within the block, which means that the sum of their (clamped)
+//  magnitudes will be at most 6.
+// This also makes the last context (ctx value 40) unachievable.
+//
+// txs_ctx >= TX_32X32 does not allow any transform types of class
+//  TX_CLASS_HORIZ or TX_CLASS_VERT.
+// This means that ctx values 26...40 all go unused.
+//
+// Additionally, for txs_ctx == TX_64X64, only plane 0 is used, since chroma
+//  planes can never use 64x64 transforms.
+//
+// We pack all of these together in a single array to avoid storing the unused
+//  contexts.
+// COEFF_BASE_CONTEXTS is the total size of this array.
+// This reduces the number of coeff_base CDFs from 410 to 302, a 26% savings.
+pub const COEFF_BASE_CONTEXTS: usize =
+ // - 1 to remove the 64x64 chroma contexts
+ SIG_COEF_CONTEXTS*(PLANE_TYPES*TxSize::TX_SIZES - 1)
+ // To remove the 32x32 and 64x64 1D transform contexts
+ - SIG_COEF_CONTEXTS_1D*(PLANE_TYPES*2 - 1)
+ // To remove the rectangular transform contexts and the final magnitude
+ //  context for the 4x4 case
+ - (SIG_COEF_REF_MAG_CONTEXTS*2 + 1)*PLANE_TYPES;
+
 pub const DC_SIGN_CONTEXTS: usize = 3;
 
 const BR_TMP_OFFSET: usize = 12;
@@ -320,11 +358,13 @@ pub static k_eob_offset_bits: [u16; 12] = [0, 0, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
 #[rustfmt::skip]
 pub static av1_nz_map_ctx_offset: [[[i8; 5]; 5]; TxSize::TX_SIZES_ALL] = [
   // TX_4X4
+  // We have removed contexts 11...20 from the array specified in the spec, so
+  //  21 gets mapped to 11 here.
   [
     [ 0,  1,  6,  6, 0],
-    [ 1,  6,  6, 21, 0],
-    [ 6,  6, 21, 21, 0],
-    [ 6, 21, 21, 21, 0],
+    [ 1,  6,  6, 11, 0],
+    [ 6,  6, 11, 11, 0],
+    [ 6, 11, 11, 11, 0],
     [ 0,  0,  0,  0, 0]
   ],
   // TX_8X8
@@ -473,9 +513,41 @@ pub static av1_nz_map_ctx_offset: [[[i8; 5]; 5]; TxSize::TX_SIZES_ALL] = [
   ]
 ];
 
+const COEFF_BASE_CONTEXTS_4X4: usize = SIG_COEF_CONTEXTS
+ - (SIG_COEF_REF_MAG_CONTEXTS*2 + 1);
+
+// The first coeff_base context index for each plane type and txs_ctx value.
+// There are only 9, since there is no TX_64X64 for chroma.
+// We collapse this to a one-dimensional array instead of including a dummy
+//  value so that bounds checking will find any mistaken use of the invalid
+//  combination.
+pub static av1_coeff_base_ctx_offset:
+ [i16; PLANE_TYPES*TxSize::TX_SIZES - 1] = [
+  0,
+  COEFF_BASE_CONTEXTS_4X4 as i16,
+  (2*COEFF_BASE_CONTEXTS_4X4) as i16,
+  (2*COEFF_BASE_CONTEXTS_4X4 + 1*SIG_COEF_CONTEXTS) as i16,
+  (2*COEFF_BASE_CONTEXTS_4X4 + 2*SIG_COEF_CONTEXTS) as i16,
+  (2*COEFF_BASE_CONTEXTS_4X4 + 3*SIG_COEF_CONTEXTS) as i16,
+  (2*COEFF_BASE_CONTEXTS_4X4 + 4*SIG_COEF_CONTEXTS) as i16,
+  (2*COEFF_BASE_CONTEXTS_4X4 + 5*SIG_COEF_CONTEXTS - 1*SIG_COEF_CONTEXTS_1D)
+   as i16,
+  (2*COEFF_BASE_CONTEXTS_4X4 + 6*SIG_COEF_CONTEXTS - 2*SIG_COEF_CONTEXTS_1D)
+   as i16,
+];
+
 const NZ_MAP_CTX_0: usize = SIG_COEF_CONTEXTS_2D;
-const NZ_MAP_CTX_5: usize = NZ_MAP_CTX_0 + 5;
-const NZ_MAP_CTX_10: usize = NZ_MAP_CTX_0 + 10;
+const NZ_MAP_CTX_5: usize = NZ_MAP_CTX_0 + SIG_COEF_REF_MAG_CONTEXTS;
+const NZ_MAP_CTX_10: usize = NZ_MAP_CTX_0 + 2*SIG_COEF_REF_MAG_CONTEXTS;
+
+// A special case for 4x4 blocks: we subtract an offset for the unused
+//  rectangular transform contexts.
+pub static nz_map_ctx_offset_1d_4: [usize; 4] = [
+  NZ_MAP_CTX_0 - 2*SIG_COEF_REF_MAG_CONTEXTS,
+  NZ_MAP_CTX_5 - 2*SIG_COEF_REF_MAG_CONTEXTS,
+  NZ_MAP_CTX_10 - 2*SIG_COEF_REF_MAG_CONTEXTS,
+  NZ_MAP_CTX_10 - 2*SIG_COEF_REF_MAG_CONTEXTS,
+];
 
 pub static nz_map_ctx_offset_1d: [usize; 32] = [
   NZ_MAP_CTX_0,
@@ -861,6 +933,7 @@ impl<'a> ContextWriter<'a> {
       + match tx_class {
         TX_CLASS_2D => {
           // This is the algorithm to generate table av1_nz_map_ctx_offset[].
+          // if (row == 0 && col == 0) return 0;
           // const int width = tx_size_wide[tx_size];
           // const int height = tx_size_high[tx_size];
           // if (width < height) {
@@ -868,14 +941,21 @@ impl<'a> ContextWriter<'a> {
           // } else if (width > height) {
           //   if (col < 2) return 16 + ctx;
           // }
-          // if (row + col < 2) return ctx + 1;
-          // if (row + col < 4) return 5 + ctx + 1;
+          // if (row + col < 2) return 1 + ctx;
+          // if (row + col < 4) return 6 + ctx;
+          // if (tx_size == TX_4X4) return 11 + ctx;
           // return 21 + ctx;
           av1_nz_map_ctx_offset[tx_size as usize][cmp::min(row, 4)]
             [cmp::min(col, 4)] as usize
         }
-        TX_CLASS_HORIZ => nz_map_ctx_offset_1d[col],
-        TX_CLASS_VERT => nz_map_ctx_offset_1d[row],
+        TX_CLASS_HORIZ => match tx_size {
+          TX_4X4 => nz_map_ctx_offset_1d_4[col],
+          _ => nz_map_ctx_offset_1d[col],
+        },
+        TX_CLASS_VERT => match tx_size {
+          TX_4X4 => nz_map_ctx_offset_1d_4[row],
+          _ => nz_map_ctx_offset_1d[row],
+        }
       }
   }
 
@@ -922,6 +1002,24 @@ impl<'a> ContextWriter<'a> {
         tx_class,
       ) as i8;
     }
+  }
+
+  pub fn get_coeff_base_ctx(txs_ctx: usize, plane_type: usize, coeff_ctx: i8)
+   -> usize {
+    // This is a nice, centralized place to check our assumptions about which
+    //  contexts go unused.
+    // We should not have plane_type == 1 for 64x64 transforms.
+    debug_assert!(txs_ctx < TX_64X64 as usize || plane_type == 0);
+    // We should not have 1-D transform contexts for 32x32 transsforms and up.
+    debug_assert!(txs_ctx < TX_32X32 as usize
+     || (coeff_ctx as usize) < SIG_COEF_CONTEXTS_2D);
+    // 4x4 transforms should not include the rectangular transform contexts or
+    //  the final 1-D transform context.
+    debug_assert!(txs_ctx > TX_4X4 as usize
+     || (coeff_ctx as usize) <
+     SIG_COEF_CONTEXTS - (2*SIG_COEF_REF_MAG_CONTEXTS + 1));
+    (av1_coeff_base_ctx_offset[txs_ctx*PLANE_TYPES + plane_type]
+     + coeff_ctx as i16) as usize
   }
 
   pub fn get_br_ctx(

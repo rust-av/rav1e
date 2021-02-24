@@ -50,8 +50,7 @@ pub struct CDFContext {
   pub lrf_switchable_cdf: [u16; 3],
   pub tx_size_cdf: [[[u16; MAX_TX_DEPTH + 1]; TX_SIZE_CONTEXTS]; BIG_TX_CATS],
 
-  pub coeff_base_cdf:
-    [[[[u16; 4]; SIG_COEF_CONTEXTS]; PLANE_TYPES]; TxSize::TX_SIZES],
+  pub coeff_base_cdf: [[u16; 4]; COEFF_BASE_CONTEXTS],
   pub coeff_br_cdf:
     [[[[u16; BR_CDF_SIZE]; LEVEL_CONTEXTS]; PLANE_TYPES]; TxSize::TX_SIZES],
   pub deblock_delta_cdf: [u16; DELTA_LF_PROBS + 1],
@@ -265,7 +264,7 @@ impl CDFContext {
     reset_3d!(self.eob_flag_cdf1024);
 
     reset_4d!(self.coeff_base_eob_cdf);
-    reset_4d!(self.coeff_base_cdf);
+    reset_2d!(self.coeff_base_cdf);
     reset_4d!(self.coeff_br_cdf);
   }
 

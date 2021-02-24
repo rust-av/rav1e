@@ -1921,11 +1921,13 @@ impl<'a> ContextWriter<'a> {
           3
         );
       } else {
+        let coeff_base_ctx =
+         Self::get_coeff_base_ctx(txs_ctx, plane_type, coeff_ctx);
         symbol_with_update!(
           self,
           w,
           (cmp::min(u32::cast_from(level), 3)) as u32,
-          &mut self.fc.coeff_base_cdf[txs_ctx][plane_type][coeff_ctx as usize],
+          &mut self.fc.coeff_base_cdf[coeff_base_ctx],
           4
         );
       }
