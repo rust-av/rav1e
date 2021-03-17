@@ -8,6 +8,9 @@
 // PATENTS file, you can obtain it at www.aomedia.org/license/patent.
 #![deny(missing_docs)]
 
+/// by_gop encoding
+#[cfg(all(feature = "channel-api", feature = "unstable"))]
+pub(crate) mod by_gop;
 /// Channel-based encoder
 #[cfg(all(feature = "channel-api", feature = "unstable"))]
 pub mod channel;

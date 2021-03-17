@@ -112,7 +112,7 @@ pub struct FrameSender<T: Pixel> {
 //
 // TODO: enforce the limit
 impl<T: Pixel> FrameSender<T> {
-  fn new(
+  pub(crate) fn new(
     limit: u64, sender: Sender<FrameInput<T>>, config: Arc<EncoderConfig>,
   ) -> FrameSender<T> {
     Self { sender, config, limit, count: 0 }
@@ -168,8 +168,8 @@ impl<T: Pixel> FrameSender<T> {
 
 /// Endpoint to receive packets
 pub struct PacketReceiver<T: Pixel> {
-  receiver: Receiver<Packet<T>>,
-  config: Arc<EncoderConfig>,
+  pub(crate) receiver: Receiver<Packet<T>>,
+  pub(crate) config: Arc<EncoderConfig>,
 }
 
 impl<T: Pixel> PacketReceiver<T> {
@@ -236,7 +236,7 @@ impl<T: Pixel> PacketReceiver<T> {
 pub type VideoDataChannel<T> = (FrameSender<T>, PacketReceiver<T>);
 
 impl Config {
-  fn setup<T: Pixel>(
+  pub(crate) fn setup<T: Pixel>(
     &self,
   ) -> Result<(ContextInner<T>, Option<Arc<ThreadPool>>), InvalidConfig> {
     self.validate()?;
