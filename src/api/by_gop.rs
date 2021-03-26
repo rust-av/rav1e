@@ -138,10 +138,13 @@ struct WorkerPool<T: Pixel> {
 
 impl<T: Pixel> WorkerPool<T> {
   fn new(
-    workers: usize, cfg: Config,
+    workers: usize, mut cfg: Config,
   ) -> (Self, Receiver<(usize, Receiver<Packet<T>>)>) {
     let (send_workers, recv_workers) = bounded(workers);
     let (send_reassemble, recv_reassemble) = unbounded();
+
+    // TODO: unpack send_frame in process
+    cfg.enc.speed_settings.no_scene_detection = true;
 
     for w in 0..workers {
       let _ = send_workers.send(w);
