@@ -42,15 +42,22 @@ impl<T: Pixel> SubGop<T> {
 // Extra
 struct SceneChange {
   frames: u64,
+  pyramid_size: usize,
   min_key_frame_interval: u64,
   max_key_frame_interval: u64,
 }
 
-const PYRAMID_SIZE: usize = 7;
-
 impl SceneChange {
-  fn new(min_key_frame_interval: u64, max_key_frame_interval: u64) -> Self {
-    Self { frames: 0, min_key_frame_interval, max_key_frame_interval }
+  fn new(
+    pyramid_size: usize, min_key_frame_interval: u64,
+    max_key_frame_interval: u64,
+  ) -> Self {
+    Self {
+      frames: 0,
+      pyramid_size,
+      min_key_frame_interval,
+      max_key_frame_interval,
+    }
   }
 
   // Tell where to split the lookahead
@@ -71,8 +78,8 @@ impl SceneChange {
 
     let len = lookahead.len();
 
-    if len > PYRAMID_SIZE {
-      Some((PYRAMID_SIZE, new_gop))
+    if len > self.pyramid_size {
+      Some((self.pyramid_size, new_gop))
     } else if new_gop {
       Some((len - 1, true))
     } else {
@@ -230,10 +237,12 @@ impl Config {
     &self, s: &thread::Scope, r: Receiver<FrameInput<T>>,
   ) -> Receiver<SubGop<T>> {
     let inter_cfg = InterConfig::new(&self.enc);
-    let lookahead_distance = inter_cfg.keyframe_lookahead_distance() as usize;
+    let lookahead_distance =
+      inter_cfg.keyframe_lookahead_distance() as usize + 1;
     let (send, recv) = bounded(lookahead_distance * 2);
 
     let mut sc = SceneChange::new(
+      lookahead_distance,
       self.enc.min_key_frame_interval,
       self.enc.max_key_frame_interval,
     );
