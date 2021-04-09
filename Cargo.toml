@@ -164,3 +164,4 @@ no-default-features = true
 
 [patch.crates-io]
 v_frame = { path = "v_frame" }
+rayon = { git = "https://github.com/lu-zero/rayon", branch = "current_threadpool" }

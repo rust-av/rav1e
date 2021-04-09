@@ -334,18 +334,12 @@ impl Config {
 
     // We use crossbeam instead of rayon on purpose.
     // We could add a work-stealing logic later.
-    let run = move || {
-      let _ = thread::scope(|s| {
+    pool.spawn_fifo(move || {
+      rayon::scope_fifo(|s| {
         let sg_recv = cfg.scenechange(s, receive_frame);
         cfg.encode(s, slots, sg_recv, send_packet);
       });
-    };
-
-    if let Some(pool) = pool {
-      pool.spawn(run);
-    } else {
-      rayon::spawn(run);
-    }
+    });
 
     let channel = (
       FrameSender::new(frame_limit, send_frame, Arc::new(self.enc)),

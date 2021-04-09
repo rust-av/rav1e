@@ -231,15 +231,15 @@ impl Config {
 
   /// Create a new threadpool with this configuration if set,
   /// or return `None` if global threadpool should be used instead.
-  pub(crate) fn new_thread_pool(&self) -> Option<Arc<ThreadPool>> {
+  pub(crate) fn new_thread_pool(&self) -> Arc<ThreadPool> {
     if let Some(ref p) = self.pool {
-      Some(p.clone())
+      Arc::clone(p)
     } else if self.threads != 0 {
       let pool =
         ThreadPoolBuilder::new().num_threads(self.threads).build().unwrap();
-      Some(Arc::new(pool))
+      Arc::new(pool)
     } else {
-      None
+      Arc::new(rayon::current())
     }
   }
 

@@ -238,7 +238,7 @@ pub type VideoDataChannel<T> = (FrameSender<T>, PacketReceiver<T>);
 impl Config {
   pub(crate) fn setup<T: Pixel>(
     &self,
-  ) -> Result<(ContextInner<T>, Option<Arc<ThreadPool>>), InvalidConfig> {
+  ) -> Result<(ContextInner<T>, Arc<ThreadPool>), InvalidConfig> {
     self.validate()?;
     let inner = self.new_inner()?;
 
@@ -510,11 +510,7 @@ impl Config {
       send_rc_pass1.send_pass_summary(&mut inner.rc_state);
     };
 
-    if let Some(pool) = pool {
-      pool.spawn(run);
-    } else {
-      rayon::spawn(run);
-    }
+    pool.spawn(run);
 
     Ok((channel, pass_channel))
   }
