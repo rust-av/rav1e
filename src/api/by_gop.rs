@@ -16,7 +16,6 @@ use crate::api::util::*;
 use crate::api::InterConfig;
 
 use crossbeam::channel::*;
-use crossbeam::thread;
 
 // use crate::encoder::*;
 use crate::frame::*;
@@ -170,7 +169,7 @@ impl<T: Pixel> WorkerPool<T> {
     )
   }
 
-  fn get_worker(&mut self, s: &thread::Scope) -> Option<Sender<SubGop<T>>> {
+  fn get_worker(&mut self, s: &rayon::ScopeFifo) -> Option<Sender<SubGop<T>>> {
     self.recv_workers.recv().ok().map(|idx| {
       let (sb_send, sb_recv) = unbounded();
       let (send, recv) = unbounded();
@@ -181,12 +180,17 @@ impl<T: Pixel> WorkerPool<T> {
 
       let mut w = Worker { idx, back: self.send_workers.clone(), send, inner };
 
-      s.spawn(move |_| {
-        for sb in sb_recv.iter() {
-          w.process(sb);
-        }
+      s.spawn_fifo(move |_| {
+        println!("\n\nStart {}", w.idx);
+        rayon::scope_fifo(|_| {
+          for sb in sb_recv.iter() {
+            println!("process {}", w.idx);
+            w.process(sb);
+          }
 
-        w.flush();
+          println!("flush {}", w.idx);
+          w.flush();
+        });
       });
 
       self.count += 1;
@@ -197,10 +201,10 @@ impl<T: Pixel> WorkerPool<T> {
 }
 
 fn reassemble<P: Pixel>(
-  recv_reassemble: Receiver<(usize, Receiver<Packet<P>>)>, s: &thread::Scope,
-  send_packet: Sender<Packet<P>>,
+  recv_reassemble: Receiver<(usize, Receiver<Packet<P>>)>,
+  s: &rayon::ScopeFifo, send_packet: Sender<Packet<P>>,
 ) {
-  s.spawn(move |_| {
+  s.spawn_fifo(move |_| {
     let mut pending = BTreeMap::new();
     let mut last_idx = 0;
     let mut packet_index = 0;
@@ -234,7 +238,7 @@ fn reassemble<P: Pixel>(
 impl Config {
   // Group the incoming frames in Gops, emit a SubGop at time.
   fn scenechange<T: Pixel>(
-    &self, s: &thread::Scope, r: Receiver<FrameInput<T>>,
+    &self, s: &rayon::ScopeFifo, r: Receiver<FrameInput<T>>,
   ) -> Receiver<SubGop<T>> {
     let inter_cfg = InterConfig::new(&self.enc);
     let lookahead_distance =
@@ -247,7 +251,7 @@ impl Config {
       self.enc.max_key_frame_interval,
     );
 
-    s.spawn(move |_| {
+    s.spawn_fifo(move |_| {
       let mut lookahead = Vec::new();
       for f in r.iter() {
         let (frame, _params) = f;
@@ -284,20 +288,19 @@ impl Config {
 
   /// Encode the subgops, dispatch each Gop to an available worker
   fn encode<T: Pixel>(
-    &self, s: &thread::Scope, workers: usize, r: Receiver<SubGop<T>>,
+    &self, s: &rayon::ScopeFifo, workers: usize, r: Receiver<SubGop<T>>,
     send_packet: Sender<Packet<T>>,
   ) {
-    let (mut pool, recv) = WorkerPool::new(workers, self.clone());
+    let (mut workers, recv) = WorkerPool::new(workers, self.clone());
 
-    let mut sg_send = pool.get_worker(s).unwrap();
-
-    s.spawn(move |s| {
+    s.spawn_fifo(move |s| {
+      let mut sg_send = workers.get_worker(s).unwrap();
       for sb in r.iter() {
         let end_gop = sb.end_gop;
         let _ = sg_send.send(sb);
 
         if end_gop {
-          sg_send = pool.get_worker(s).unwrap();
+          sg_send = workers.get_worker(s).unwrap();
         }
       }
     });
