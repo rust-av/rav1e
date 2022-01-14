@@ -115,7 +115,7 @@ impl<D: Decoder> Source<D> {
 }
 
 fn do_encode<T: Pixel, D: Decoder>(
-  cfg: Config, verbose: Verbose, mut progress: ProgressInfo,
+  cfg: Config, verbose: Verbosity, mut progress: ProgressInfo,
   output: &mut dyn Muxer, mut source: Source<D>, pass1file: Option<File>,
   pass2file: Option<File>,
   mut y4m_enc: Option<y4m::Encoder<Box<dyn Write + Send>>>,
@@ -267,9 +267,9 @@ fn do_encode<T: Pixel, D: Decoder>(
           metrics_enabled,
         );
 
-        if verbose != Verbose::Quiet {
+        if verbose != Verbosity::Quiet {
           progress.add_frame(summary.clone());
-          if verbose == Verbose::Verbose {
+          if verbose == Verbosity::Verbose {
             info!("{} - {}", summary, progress);
           } else {
             // Print a one-line progress indicator that overrides itself with every update
@@ -278,12 +278,12 @@ fn do_encode<T: Pixel, D: Decoder>(
         }
       }
 
-      if verbose != Verbose::Quiet {
-        if verbose == Verbose::Verbose {
+      if verbose != Verbosity::Quiet {
+        if verbose == Verbosity::Verbose {
           // Clear out the temporary progress indicator
           eprint!("\r");
         }
-        progress.print_summary(verbose == Verbose::Verbose);
+        progress.print_summary(verbose == Verbosity::Verbose);
       }
 
       // receive_packet.result()
@@ -523,7 +523,7 @@ fn run() -> Result<(), error::CliError> {
 
   let tiling =
     cfg.tiling_info().map_err(|e| e.context("Invalid configuration"))?;
-  if cli.verbose != Verbose::Quiet {
+  if cli.verbose != Verbosity::Quiet {
     info!("CPU Feature Level: {}", CpuFeatureLevel::default());
 
     info!(
