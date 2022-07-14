@@ -39,6 +39,13 @@ jobs:
       run: |
         $VsPath = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer"
 
+    - name: Disable lto on gnu for now
+      if: matrix.conf == "gnu"
+      run: |
+        mkdir ~/.cargo
+        echo "[profile.release]" >> ~/.cargo/config.toml
+        echo "lto = off" >> ~/.cargo/config.toml
+
     - name: Set MSVC x86_64 linker path
       if: matrix.conf == 'msvc'
       run: |
