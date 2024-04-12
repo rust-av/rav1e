@@ -136,7 +136,8 @@ To build and install it you can use [cargo-c](https://crates.io/crates/cargo-c):
 
 ```sh
 cargo install cargo-c
-cargo cinstall --release
+cargo cinstall --release --destdir /tmp/staging
+sudo cp -a /tmp/staging/* /
 ```
 
 Please refer to the cargo-c [installation](https://github.com/lu-zero/cargo-c#installation) instructions.
